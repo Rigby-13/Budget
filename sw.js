@@ -1,13 +1,16 @@
 // =====================================================================
-// sw.js — service worker. Сохраняет файлы приложения в кэш телефона,
+// sw.js — service worker. Сохраняет файлы приложения на телефоне,
 // чтобы оно открывалось без интернета.
 //
-// Стратегия: сразу показываем версию из кэша (быстро и офлайн),
-// а в фоне скачиваем свежую. Обновление появится при следующем запуске.
-// Когда меняете список файлов — увеличьте номер версии.
+// Стратегия «сначала сеть»: если интернет есть — всегда берём свежие
+// файлы (и обновляем копию). Если сети нет или она очень медленная —
+// показываем сохранённую копию. Так обновления приходят сразу,
+// а старые и новые файлы никогда не смешиваются.
 // =====================================================================
 
-const CACHE = 'budget-v3';
+const VERSION = 4;
+const CACHE = 'budget-v' + VERSION;
+const NETWORK_TIMEOUT = 3000; // мс: дольше ждать сеть нет смысла
 const FILES = [
   './',
   './index.html',
@@ -26,30 +29,44 @@ const FILES = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)));
+  // cache: 'reload' — мимо кэша браузера, чтобы точно взять свежие файлы
+  event.waitUntil(
+    caches.open(CACHE).then((c) =>
+      c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' }))))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.open(CACHE).then(async (cache) => {
-      const cached = await cache.match(event.request, { ignoreSearch: true });
-      const network = fetch(event.request)
-        .then((res) => {
-          if (res.ok) cache.put(event.request, res.clone());
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
-  );
+  const req = event.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  event.respondWith(networkFirst(req));
 });
+
+async function networkFirst(req) {
+  const cache = await caches.open(CACHE);
+  try {
+    const res = await withTimeout(fetch(req, { cache: 'no-cache' }), NETWORK_TIMEOUT);
+    if (res.ok) cache.put(req, res.clone());
+    return res;
+  } catch {
+    const cached = await cache.match(req, { ignoreSearch: true })
+      || (req.mode === 'navigate' && await cache.match('./index.html'));
+    return cached || Response.error();
+  }
+}
+
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}

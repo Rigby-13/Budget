@@ -51,11 +51,6 @@ async function init() {
   initBackup();
   initCategories();
   await renderExpenses();
-
-  // Service worker — нужен для работы без интернета
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW:', e));
-  }
 }
 
 async function seedCategories() {
@@ -320,6 +315,21 @@ function bindEvents() {
   for (const t of document.querySelectorAll('.tab')) {
     t.addEventListener('click', () => switchView(t.dataset.view));
   }
+}
+
+// Service worker — нужен для работы без интернета.
+// Регистрируем его ДО запуска, чтобы обновление пришло, даже если в
+// приложении что-то сломалось.
+if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW:', e));
+  // Пришла новая версия — один раз перезагружаемся, чтобы сразу её показать
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
 }
 
 init().catch((err) => {
