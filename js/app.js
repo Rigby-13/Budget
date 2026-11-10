@@ -11,6 +11,7 @@ import { $, focusField, openSheet, closeSheet, closeSheets, closeTopSheet, isOpe
 import { initCategories, openCategories } from './categories.js';
 import { initDebts, renderDebts, openDebtSheet } from './debts.js';
 import { initBackup, openSettings } from './backup.js';
+import { initStats, renderStats, limitStatuses, checkLimitAfterSave } from './stats.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
 const DEFAULT_CATEGORIES = [
@@ -50,6 +51,7 @@ async function init() {
   initDebts();
   initBackup();
   initCategories();
+  initStats();
   await renderExpenses();
 }
 
@@ -90,6 +92,16 @@ async function renderExpenses() {
   $('sum-expense').textContent = formatMoney(expense);
   $('sum-income').textContent = formatMoney(income);
   $('sum-balance').textContent = (balance > 0 ? '+' : '') + formatMoney(balance);
+
+  // Предупреждения о лимитах (80% и больше)
+  const alerts = limitStatuses(state.categories, items).filter((l) => l.status !== 'ok');
+  $('limit-alerts').innerHTML = alerts.map((l) => `
+    <div class="limit-alert ${l.status}">
+      ${l.status === 'over' ? '⛔' : '⚠️'} ${l.category.emoji} ${escapeHTML(l.category.name)}:
+      ${l.status === 'over'
+        ? `лимит превышен на ${formatMoney(l.spent - l.limit)}`
+        : `${l.pct}% лимита, осталось ${formatMoney(l.limit - l.spent)}`}
+    </div>`).join('');
 
   // Сортировка: новые сверху
   items.sort((a, b) => (b.date.localeCompare(a.date)) || (b.createdAt - a.createdAt));
@@ -228,7 +240,8 @@ async function saveForm(e) {
   const [y, m] = date.split('-').map(Number);
   state.year = y; state.month = m - 1;
   await renderExpenses();
-  toast(wasEditing ? 'Сохранено' : 'Добавлено');
+  // Если подбираемся к лимиту — покажем предупреждение вместо «Добавлено»
+  if (!(await checkLimitAfterSave(tx))) toast(wasEditing ? 'Сохранено' : 'Добавлено');
 }
 
 async function deleteCurrent() {
@@ -254,6 +267,7 @@ function switchView(name) {
   // Кнопка «+» есть на вкладках трат и долгов
   $('fab').classList.toggle('hidden', !['expenses', 'debts'].includes(name));
   if (name === 'debts') renderDebts();
+  if (name === 'stats') renderStats();
   window.scrollTo(0, 0);
 }
 
@@ -291,6 +305,7 @@ function bindEvents() {
     state.categories = await db.getAll('categories');
     if (isOpen($('tx-sheet'))) renderCategoryChips();
     await renderExpenses();
+    if (state.view === 'stats') await renderStats();
   });
   $('tx-sheet').addEventListener('submit', saveForm);
   $('tx-delete').addEventListener('click', deleteCurrent);

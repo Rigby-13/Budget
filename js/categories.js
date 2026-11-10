@@ -7,7 +7,7 @@
 // =====================================================================
 
 import * as db from './db.js';
-import { escapeHTML } from './utils.js';
+import { escapeHTML, formatMoney, parseMoney, moneyToInput } from './utils.js';
 import { $, focusField, openSheet, closeSheet, shake, toast } from './ui.js';
 
 // Готовые эмодзи для быстрого выбора
@@ -57,7 +57,7 @@ async function renderList() {
     <div class="cat-row" data-id="${c.id}">
       <button type="button" class="cat-row-main" data-action="edit">
         <span class="tx-emoji">${c.emoji}</span>
-        <span class="cat-row-name">${escapeHTML(c.name)}</span>
+        <span class="cat-row-name">${escapeHTML(c.name)}${c.limit > 0 ? `<small>лимит ${formatMoney(c.limit)} в месяц</small>` : ''}</span>
       </button>
       ${isHidden ? '' : `
         <button type="button" class="move-btn" data-action="up" ${i === 0 ? 'disabled' : ''} aria-label="Выше">↑</button>
@@ -97,6 +97,9 @@ async function openEdit(cat = null) {
   state.editing = cat;
   $('cat-edit-title').textContent = cat ? 'Категория' : 'Новая категория';
   $('cat-name').value = cat ? cat.name : '';
+  // Лимит бывает только у категорий расходов
+  $('cat-limit-field').hidden = state.type !== 'expense';
+  $('cat-limit').value = cat && cat.limit > 0 ? moneyToInput(cat.limit) : '';
   setEmoji(cat ? cat.emoji : EMOJIS[0]);
   $('cat-emoji-grid').innerHTML = EMOJIS.map((e) =>
     `<button type="button" class="emoji-btn" data-emoji="${e}">${e}</button>`).join('');
@@ -157,10 +160,18 @@ async function saveCategory(e) {
     && c.name.toLowerCase() === name.toLowerCase() && c.id !== state.editing?.id);
   if (duplicate) { shake($('cat-name')); toast('Такая категория уже есть'); return; }
 
+  // Лимит: пустое поле — без лимита
+  const limitText = $('cat-limit').value.trim();
+  let limit = 0;
+  if (state.type === 'expense' && limitText) {
+    limit = parseMoney(limitText);
+    if (!(limit > 0)) { shake($('cat-limit')); toast('Неверная сумма лимита'); return; }
+  }
+
   const maxOrder = Math.max(-1, ...all.filter((c) => c.type === state.type).map((c) => c.order));
   const cat = state.editing
-    ? { ...state.editing, name, emoji: currentEmoji }
-    : { id: db.newId(), type: state.type, name, emoji: currentEmoji, order: maxOrder + 1, archived: false };
+    ? { ...state.editing, name, emoji: currentEmoji, limit }
+    : { id: db.newId(), type: state.type, name, emoji: currentEmoji, order: maxOrder + 1, archived: false, limit };
   await db.put('categories', cat);
 
   closeSheet($('cat-edit-sheet'));
