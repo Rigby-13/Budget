@@ -264,11 +264,13 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.9.1</p>
+      <p class="small muted center">Версия 6.9.2</p>
   </main>
 
   <!-- Большая кнопка «+» -->
-  <button id="fab" aria-label="Добавить запись">+</button>
+  <button id="fab" aria-label="Добавить запись">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
 
   <!-- ===================== НИЖНЯЯ ПАНЕЛЬ ВКЛАДОК ===================== -->
   <nav class="tabbar">
@@ -466,16 +468,13 @@
       <button type="submit" class="link-btn bold">Готово</button>
     </div>
     <div class="sheet-body">
-      <div class="emoji-preview" id="cat-emoji-preview">🍔</div>
+      <!-- Тап по эмодзи — выбрать другой -->
+      <button type="button" class="emoji-preview" id="cat-emoji-preview" aria-label="Выбрать эмодзи">🍔</button>
+      <p class="small muted center emoji-hint">Нажмите, чтобы сменить эмодзи</p>
       <label class="field">
         <span>Название</span>
         <input id="cat-name" type="text" placeholder="Например, Кафе" maxlength="30" enterkeyhint="done">
       </label>
-      <label class="field">
-        <span>Свой эмодзи или выберите ниже</span>
-        <input id="cat-emoji-input" class="emoji-input" type="text" placeholder="Нажмите и включите клавиатуру эмодзи" autocomplete="off" autocorrect="off" spellcheck="false">
-      </label>
-      <div class="emoji-grid" id="cat-emoji-grid"></div>
       <p class="small muted" id="cat-usage"></p>
       <button type="button" class="plain-btn" id="cat-restore" hidden>Вернуть в список</button>
       <button type="button" class="danger-btn" id="cat-delete" hidden>Удалить категорию</button>
@@ -544,6 +543,22 @@
         <button type="button" class="link-btn small-link" id="imp-all">Все / ничего</button>
       </div>
       <div class="imp-list" id="imp-list"></div>
+    </div>
+  </div>
+
+  <!-- ============ ПАНЕЛЬ: ВЫБОР ЭМОДЗИ ============ -->
+  <div id="emoji-sheet" class="sheet">
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <b>Эмодзи</b>
+      <span class="link-btn"></span>
+    </div>
+    <div class="sheet-body">
+      <label class="field">
+        <span>Свой эмодзи</span>
+        <input id="cat-emoji-input" class="emoji-input" type="text" placeholder="Нажмите и включите клавиатуру эмодзи" autocomplete="off" autocorrect="off" spellcheck="false">
+      </label>
+      <div class="emoji-grid" id="cat-emoji-grid"></div>
     </div>
   </div>
 
