@@ -264,7 +264,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.9</p>
+      <p class="small muted center">Версия 6.9.1</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -445,7 +445,7 @@
   <!-- ============ ПАНЕЛЬ: СПИСОК КАТЕГОРИЙ ============ -->
   <div id="cats-sheet" class="sheet">
     <div class="sheet-header">
-      <span class="link-btn"></span>
+      <button type="button" class="link-btn" id="cats-select">Выбрать</button>
       <div class="segmented" id="cats-type">
         <button type="button" data-type="expense" class="active">Расходы</button>
         <button type="button" data-type="income">Доходы</button>
@@ -453,7 +453,7 @@
       <button type="button" class="link-btn bold" data-close>Готово</button>
     </div>
     <div class="sheet-body">
-      <p class="small muted" style="margin-top:0">Нажмите на категорию, чтобы изменить название или эмодзи. Стрелки меняют порядок.</p>
+      <p class="small muted" style="margin-top:0">Нажмите — изменить. Смахните вбок — удалить. Зажмите и перетащите (или тяните за ≡) — поменять порядок.</p>
       <div id="cats-list"></div>
     </div>
   </div>
@@ -472,8 +472,8 @@
         <input id="cat-name" type="text" placeholder="Например, Кафе" maxlength="30" enterkeyhint="done">
       </label>
       <label class="field">
-        <span>Свой эмодзи (впишите с клавиатуры) или выберите ниже</span>
-        <input id="cat-emoji-input" type="text" placeholder="😀">
+        <span>Свой эмодзи или выберите ниже</span>
+        <input id="cat-emoji-input" class="emoji-input" type="text" placeholder="Нажмите и включите клавиатуру эмодзи" autocomplete="off" autocorrect="off" spellcheck="false">
       </label>
       <div class="emoji-grid" id="cat-emoji-grid"></div>
       <p class="small muted" id="cat-usage"></p>

@@ -831,3 +831,43 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 .danger-outline:disabled { color: var(--muted); opacity: 0.7; }
 .danger-outline:active, .danger-fill:active { opacity: 0.7; }
 .as-danger { color: var(--danger); font-weight: 600; font-size: 15px; line-height: 1.4; display: block; padding: 0 6px; }
+
+/* 6.9.1: список категорий — свайп, перетаскивание, выбор */
+.cat-list .cat-row, .day-list .cat-row { position: relative; overflow: hidden; padding: 0; display: block; }
+.cat-row { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.cat-swipe-bg {
+  position: absolute; inset: 0; background: var(--danger); color: #fff; font-weight: 600;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 22px;
+}
+.cat-row-inner {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; min-height: 56px; background: var(--card); cursor: pointer;
+}
+.cat-row-inner:active { background: var(--chip); }
+.cat-row + .cat-row { border-top: 0.5px solid var(--line); }
+.cat-row-name { flex: 1; min-width: 0; }
+.drag-handle {
+  font-size: 22px; color: var(--muted); padding: 6px 4px 6px 14px; touch-action: none; cursor: grab; line-height: 1;
+}
+.cat-row.dragging { z-index: 5; overflow: visible; }
+.cat-row.dragging .cat-row-inner { box-shadow: 0 8px 24px rgba(0,0,0,0.3); transform: scale(1.02); border-radius: 12px; }
+.cat-row.dragging .cat-swipe-bg { display: none; }
+.cat-check {
+  width: 24px; height: 24px; border-radius: 12px; border: 2px solid var(--muted); flex: none;
+  display: grid; place-items: center;
+}
+.cat-check.on { background: var(--danger); border-color: var(--danger); }
+.cat-check.on::after { content: '✓'; color: #fff; font-size: 14px; font-weight: 700; }
+.hidden-cat .cat-row-inner { opacity: 0.7; }
+#cat-delete-selected { margin-top: 12px; }
+#cat-delete-selected:disabled { background: var(--chip); color: var(--muted); }
+
+/* Поле «свой эмодзи» — пустое и тёмное, чтобы было видно, что это поле ввода */
+.field input.emoji-input {
+  background: var(--bg); border: 1.5px solid var(--line); font-size: 15px;
+}
+.field input.emoji-input::placeholder { color: var(--muted); }
+@media (prefers-color-scheme: dark) { .field input.emoji-input { background: #000; border-color: #3a3a3c; } }
+/* Красный фон виден только во время свайпа */
+.cat-swipe-bg { opacity: 0; }
+.cat-row.swiping .cat-swipe-bg, .cat-row.open-left .cat-swipe-bg, .cat-row.open-right .cat-swipe-bg { opacity: 1; }
