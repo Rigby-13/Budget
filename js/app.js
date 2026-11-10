@@ -21,6 +21,7 @@ import { initTestMode } from './testmode.js';
 import { initSavings } from './savings.js';
 import { initWallet, renderBalance } from './wallet.js';
 import { initGuide } from './guide.js';
+import { initTheme } from './theme.js';
 import { initImport } from './importer.js';
 import { initReset, renderReset } from './reset.js';
 
@@ -75,6 +76,7 @@ async function init() {
   initWallet();
   initImport();
   initReset();
+  initTheme();
   initGuide();
   initTestMode();
   await renderExpenses();
