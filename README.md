@@ -22,6 +22,8 @@ js/testmode.js        — тестовый режим и «машина врем
 js/savings.js         — накопления: копилка, итоги месяцев
 js/wallet.js          — «Мои деньги»: текущий остаток
 js/guide.js           — гайд при первом открытии
+js/importparse.js     — чтение выписки: CSV и Excel (.xlsx)
+js/importer.js        — импорт выписки: колонки, категории, повторы
 sw.js                 — service worker (офлайн-режим)
 manifest.webmanifest  — описание приложения для экрана «Домой»
 icons/                — иконки
