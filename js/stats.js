@@ -310,7 +310,7 @@ export function initStats() {
     const b = e.target.closest('button');
     if (!b) return;
     state.section = b.dataset.section;
-    window.scrollTo(0, 0);
+    $('view-stats').scrollTo(0, 0);
     renderStats();
   });
   $('stats-mode').addEventListener('click', (e) => {

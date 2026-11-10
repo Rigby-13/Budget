@@ -402,6 +402,12 @@ export function initCategories() {
     if (!b) return;
     setEmoji(b.dataset.emoji);
     markEmoji();
+    closeSheet($('emoji-sheet'));
+  });
+  // Тап по большому эмодзи — открыть панель выбора
+  $('cat-emoji-preview').addEventListener('click', () => {
+    markEmoji();
+    openSheet($('emoji-sheet'));
   });
   // Можно вписать любой эмодзи с клавиатуры iPhone
   $('cat-emoji-input').addEventListener('input', (e) => {
@@ -412,6 +418,7 @@ export function initCategories() {
     markEmoji();
     e.target.value = ''; // поле снова пустое — выбранный эмодзи виден в большом квадрате
     e.target.blur();
+    closeSheet($('emoji-sheet'));
   });
   $('cat-delete').addEventListener('click', deleteCategory);
   $('cat-restore').addEventListener('click', restoreCategory);

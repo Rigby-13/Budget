@@ -871,3 +871,24 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 /* Красный фон виден только во время свайпа */
 .cat-swipe-bg { opacity: 0; }
 .cat-row.swiping .cat-swipe-bg, .cat-row.open-left .cat-swipe-bg, .cat-row.open-right .cat-swipe-bg { opacity: 1; }
+
+/* =====================================================================
+   6.9.2: прокрутка только внутри экрана (между верхом и нижней панелью)
+   ===================================================================== */
+html, body { height: 100%; overflow: hidden; }
+.view { min-height: 0; }
+.view.active {
+  position: fixed; top: 0; left: 0; right: 0;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
+  padding-bottom: 96px; /* место под кнопку «+» */
+}
+
+/* «+» — нарисованный крестик точно по центру */
+#fab { display: grid; place-items: center; font-size: 0; }
+#fab svg { width: 30px; height: 30px; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; fill: none; }
+
+/* Большой эмодзи — кнопка */
+.emoji-preview { display: grid; border: 0; cursor: pointer; margin-bottom: 6px; }
+.emoji-preview:active { transform: scale(0.95); }
+.emoji-hint { margin: 0 0 14px; }

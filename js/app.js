@@ -407,7 +407,7 @@ function switchView(name) {
   if (name === 'debts') renderDebts();
   if (name === 'stats') renderStats();
   if (name === 'settings') { renderSettings(); renderTemplatesSettings(); renderReset(); }
-  window.scrollTo(0, 0);
+  $('view-' + name).scrollTo(0, 0);
 }
 
 // =====================================================================
@@ -493,7 +493,7 @@ function bindEvents() {
     state.pickedDate = null;
     state.year = n.getFullYear(); state.month = n.getMonth();
     renderExpenses();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    $('view-expenses').scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   // Деньги изменились — обновляем баланс
