@@ -163,9 +163,14 @@ input { font: inherit; color: inherit; }
   background: var(--bg);
   border-radius: 16px 16px 0 0;
   display: flex; flex-direction: column;
-  transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1);
+  /* Панель появляется сразу на своём месте (плавное проявление), а не
+     выезжает снизу: иначе iPhone при открытии клавиатуры прокручивает
+     страницу к полю, пока оно ещё за экраном, и верх панели уезжает. */
+  opacity: 0; pointer-events: none;
+  transform: translateY(12px);
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(.2,.8,.2,1);
 }
-.sheet.open { transform: translateY(0); }
+.sheet.open { opacity: 1; pointer-events: auto; transform: none; }
 
 .sheet-header {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;

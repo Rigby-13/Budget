@@ -8,7 +8,7 @@
 
 import * as db from './db.js';
 import { escapeHTML } from './utils.js';
-import { $, openSheet, closeSheet, shake, toast } from './ui.js';
+import { $, focusField, openSheet, closeSheet, shake, toast } from './ui.js';
 
 // Готовые эмодзи для быстрого выбора
 const EMOJIS = [
@@ -116,7 +116,7 @@ async function openEdit(cat = null) {
   }
 
   openSheet($('cat-edit-sheet'));
-  if (!cat) $('cat-name').focus();
+  if (!cat) focusField($('cat-name'));
 }
 
 let currentEmoji = '';

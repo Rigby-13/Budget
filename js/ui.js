@@ -25,6 +25,20 @@ export function openSheet(el) {
   updateLayers();
 }
 
+/**
+ * Поставить курсор в поле и открыть клавиатуру, не прокручивая страницу.
+ * На iPhone это работает, только если вызвать прямо в обработчике нажатия.
+ */
+export function focusField(input) {
+  const y = window.scrollY;
+  input.focus({ preventScroll: true });
+  // Подстраховка: если iPhone всё же прокрутил страницу — возвращаем на место
+  setTimeout(() => {
+    if (window.scrollY !== y) window.scrollTo(0, y);
+    input.closest('.sheet-body')?.scrollTo(0, 0);
+  }, 350);
+}
+
 /** Закрыть одну панель. */
 export function closeSheet(el) {
   document.activeElement?.blur();
