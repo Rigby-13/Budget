@@ -25,14 +25,21 @@
   <!-- ===================== ВКЛАДКА «ТРАТЫ» ===================== -->
   <main id="view-expenses" class="view active">
     <header class="topbar">
-      <span class="icon-btn" aria-hidden="true"></span>
+      <span class="topbar-side" aria-hidden="true"></span>
       <div class="month-switch">
         <button class="icon-btn" id="prev-month" aria-label="Предыдущий месяц">‹</button>
-        <h1 id="month-title">Месяц</h1>
+        <!-- Тап по названию — выбрать любой месяц -->
+        <label class="month-pick">
+          <h1 id="month-title">Месяц</h1>
+          <input id="month-pick" type="month" aria-label="Выбрать месяц">
+        </label>
         <button class="icon-btn" id="next-month" aria-label="Следующий месяц">›</button>
       </div>
-      <span class="icon-btn" aria-hidden="true"></span>
+      <span class="topbar-side right"><button type="button" class="today-pill" id="to-today" hidden>Сегодня</button></span>
     </header>
+
+    <!-- Сколько денег сейчас -->
+    <button type="button" class="card balance-card" id="balance-card"></button>
 
     <div id="month-report"></div>
     <!-- Главное: сколько можно потратить сегодня -->
@@ -209,7 +216,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.3</p>
+      <p class="small muted center">Версия 6.4</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -277,17 +284,18 @@
       </div>
 
       <div id="tx-fields">
-        <!-- Дата и комментарий нужны редко — прячем под одной строкой -->
-        <button type="button" class="more-row" id="tx-more">
-          <span id="tx-more-date">📅 Сегодня</span><span class="muted">💬 комментарий ›</span>
-        </button>
-        <div id="tx-extra" hidden>
-        <div class="field-row">
-          <label class="field">
-            <span>Дата</span>
-            <input id="tx-date" type="date">
+        <!-- Дата: быстрые кнопки «Сегодня / Вчера» или любая дата -->
+        <div class="date-chips" id="tx-date-chips">
+          <button type="button" data-day="0">Сегодня</button>
+          <button type="button" data-day="-1">Вчера</button>
+          <label class="chip-date" id="tx-date-other">
+            <span id="tx-date-label">📅 Другая</span>
+            <input id="tx-date" type="date" aria-label="Дата">
           </label>
         </div>
+        <!-- Комментарий нужен редко — прячем -->
+        <button type="button" class="more-row" id="tx-more">💬 Добавить комментарий</button>
+        <div id="tx-extra" hidden>
         <label class="field">
           <span>Комментарий</span>
           <input id="tx-comment" type="text" placeholder="необязательно" enterkeyhint="done">
@@ -423,6 +431,25 @@
         <span>Комментарий</span>
         <input id="sav-comment" type="text" placeholder="например, на отпуск" enterkeyhint="done">
       </label>
+    </div>
+  </form>
+
+  <!-- ============ ПАНЕЛЬ: СКОЛЬКО ДЕНЕГ СЕЙЧАС ============ -->
+  <form id="wallet-sheet" class="sheet" autocomplete="off" novalidate>
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <b>Мои деньги</b>
+      <button type="submit" class="link-btn bold">Готово</button>
+    </div>
+    <div class="sheet-body">
+      <div class="amount-caption">Сколько у вас сейчас денег?</div>
+      <label class="amount-wrap">
+        <input id="wallet-amount" class="amount-input" type="text" inputmode="decimal" placeholder="0" aria-label="Сумма">
+        <span class="currency">₽</span>
+      </label>
+      <p class="small muted center">Все карты и наличные вместе, <b>без копилки</b>.<br>
+      Дальше остаток будет считаться сам: + доходы, − траты, − отложено в копилку.
+      Если разойдётся с реальностью — просто укажите заново.</p>
     </div>
   </form>
 
