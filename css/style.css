@@ -632,8 +632,7 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
   height: 30px; padding: 0 12px; border-radius: 15px; min-width: 44px;
   background: var(--chip); color: var(--accent); font-size: 14px; font-weight: 600;
 }
-.topbar-side { width: 76px; flex: none; display: flex; }
-.topbar-side.right { justify-content: flex-end; }
+.topbar-side { width: 44px; flex: none; }
 .month-switch h1 { min-width: 0; }
 
 .date-chips { display: flex; gap: 8px; margin-bottom: 10px; }
@@ -648,7 +647,6 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 
 .test-date { position: relative; }
 .test-date input { position: absolute; inset: 0; opacity: 0; width: 100%; }
-.topbar-side { width: 62px; }
 .month-switch .icon-btn { width: 36px; }
 .month-switch h1 { white-space: nowrap; font-size: 20px; }
 
@@ -730,3 +728,13 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 }
 .add-limit-btn.ready { background: var(--income); color: #fff; }
 .add-limit-btn.ready:active { transform: scale(0.98); }
+
+/* 6.6.2: строка выбранного дня под заголовком */
+.date-bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; }
+.date-bar-btn, .date-bar-add {
+  height: 34px; padding: 0 14px; border-radius: 17px; font-size: 14px; font-weight: 600;
+  background: var(--chip); color: var(--accent);
+}
+.date-bar-add { background: var(--accent); color: #fff; }
+.date-bar-btn:active, .date-bar-add:active { opacity: 0.7; }
+.day-group.flash .day-list { box-shadow: 0 0 0 2px var(--accent); transition: box-shadow 0.3s; }
