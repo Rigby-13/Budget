@@ -1041,3 +1041,19 @@ html, body { touch-action: manipulation; }
 .style-swatch i { width: 22px; height: 22px; border-radius: 11px; border: 2px solid var(--card); margin-left: -6px; }
 .style-swatch i:first-child { margin-left: 0; }
 #theme-modes button { font-size: 13px; padding: 7px 4px; }
+
+/* 7.1: импорт — убрать операцию, кнопка «Добавить» внизу */
+.imp-row { position: relative; }
+.imp-remove {
+  flex: none; width: 32px; height: 32px; border-radius: 16px; margin: -4px -4px 0 0;
+  color: var(--muted); font-size: 15px;
+}
+.imp-remove:active { background: var(--chip); }
+.imp-meta { font-size: 12px; color: var(--muted); }
+.imp-removed { margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
+.imp-footer {
+  position: sticky; bottom: 0; padding: 12px 0 calc(var(--safe-bottom) + 4px);
+  background: linear-gradient(to bottom, transparent, var(--bg) 30%);
+}
+.imp-footer .primary-btn { margin-top: 0; }
+.imp-footer .primary-btn:disabled { background: var(--chip); color: var(--muted); }
