@@ -72,7 +72,7 @@ function renderControls() {
     <p class="small" style="margin-top:0">🧪 Сейчас включён тестовый режим. Дата: <b>${shortDate(todayISO())}</b>.
     Листайте дни кнопками вверху экрана.</p>
     <button type="button" class="primary-btn full" id="test-fill">Заполнить примером</button>
-    <p class="small muted">План 20 000 ₽, копилка 5 000 ₽, транспорт и нейросети по 2 000 ₽ в месяц,
+    <p class="small muted">План 20 000 ₽, копилка 5 000 ₽, транспорт и подписки по 2 000 ₽ в месяц,
     еда 2 100 ₽ в неделю (300 ₽ в день) и случайные траты с 1-го числа по вчера.</p>
     <button type="button" class="secondary-btn full" id="test-today">Вернуть сегодняшнюю дату</button>
     <button type="button" class="secondary-btn full" id="test-clear">Очистить тестовые данные</button>
@@ -101,18 +101,21 @@ async function fillExample() {
   // Нужные категории: берём существующие или создаём
   const cats = await db.getAll('categories');
   let order = cats.length;
-  const ensure = async (name, emoji) => {
-    let c = cats.find((x) => x.type === 'expense' && x.name === name && !x.archived);
+  // Берём первую подходящую из списка названий, иначе создаём первую
+  const ensure = async (names, emoji) => {
+    names = [].concat(names);
+    const name = names[0];
+    let c = names.map((n) => cats.find((x) => x.type === 'expense' && x.name === n && !x.archived)).find(Boolean);
     if (!c) {
       c = { id: db.newId(), type: 'expense', name, emoji, order: order++, archived: false };
       await db.put('categories', c);
     }
     return c;
   };
-  const food = await ensure('Еда', '🍔');
+  const food = await ensure(['Еда/Напитки', 'Еда'], '🍔');
   const transport = await ensure('Транспорт', '🚌');
-  const ai = await ensure('Нейросети', '🤖');
-  const fun = await ensure('Развлечения', '🎉');
+  const ai = await ensure(['Подписки', 'Нейросети'], '💳');
+  const fun = await ensure(['Покупки', 'Развлечения'], '🛒');
 
   // Шаблон «Пример» — выбран на текущий месяц
   const key = currentMonthKey();
