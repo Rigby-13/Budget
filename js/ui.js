@@ -70,6 +70,32 @@ export function shake(el) {
   el.classList.add('shake');
 }
 
+/**
+ * Меню действий снизу экрана.
+ * items: [{ label, sub?, checked?, danger?, onClick }]
+ */
+export function actionSheet(title, items) {
+  const el = $('action-sheet');
+  el.innerHTML = `<div class="as-title">${title}</div>`;
+  for (const it of items) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'as-item' + (it.danger ? ' danger' : '') + (it.checked ? ' checked' : '');
+    b.innerHTML = `<span class="as-label"></span>${it.sub ? '<span class="as-sub"></span>' : ''}`;
+    b.querySelector('.as-label').textContent = (it.checked ? '✓ ' : '') + it.label;
+    if (it.sub) b.querySelector('.as-sub').textContent = it.sub;
+    b.addEventListener('click', () => { closeSheet(el); it.onClick(); });
+    el.appendChild(b);
+  }
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'as-item as-cancel';
+  cancel.textContent = 'Отмена';
+  cancel.addEventListener('click', () => closeSheet(el));
+  el.appendChild(cancel);
+  openSheet(el);
+}
+
 let toastTimer;
 /**
  * Всплывающее сообщение внизу экрана.

@@ -559,3 +559,40 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 .toast button { color: var(--accent); font-weight: 600; padding: 6px 10px; border-radius: 14px; }
 @media (prefers-color-scheme: dark) { .toast button { color: #0a84ff; } }
 .hero-cta { white-space: nowrap; margin-left: 12px; }
+
+/* =====================================================================
+   6.2: шаблоны планов, меню действий, вкладка «Настройки»
+   ===================================================================== */
+.plan-picker { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-bottom: 4px; font-size: 13px; text-align: center; }
+.picker-btn { background: var(--chip); border-radius: 16px; padding: 6px 14px; font-size: 15px; }
+.picker-btn b { color: var(--accent); }
+.card-head h3 small { font-size: 14px; font-weight: 400; }
+
+.tpl-card { padding-top: 6px; }
+.tpl-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 0; }
+.tpl-row + .tpl-row { border-top: 0.5px solid var(--line); }
+.tpl-row:active { opacity: 0.6; }
+.tpl-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tpl-main small { font-size: 13px; }
+.badge { font-size: 12px; background: var(--accent); color: #fff; border-radius: 10px; padding: 2px 8px; }
+
+/* Меню действий — прижато к низу, по высоте содержимого */
+.sheet.action-sheet {
+  top: auto; bottom: 0; max-height: 80vh; overflow-y: auto;
+  padding: 8px 12px calc(var(--safe-bottom) + 12px);
+  background: var(--bg);
+}
+.as-title { text-align: center; font-size: 13px; color: var(--muted); padding: 10px 0 8px; }
+.as-item {
+  display: flex; flex-direction: column; align-items: center; width: 100%;
+  background: var(--card); padding: 14px; font-size: 17px; color: var(--accent);
+}
+.as-item:first-of-type { border-radius: 14px 14px 0 0; }
+.as-item + .as-item { border-top: 0.5px solid var(--line); }
+.as-item:nth-last-child(2) { border-radius: 0 0 14px 14px; }
+.as-item:only-of-type { border-radius: 14px; }
+.as-item.checked { font-weight: 600; }
+.as-item.danger { color: var(--danger); }
+.as-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.as-item.as-cancel { margin-top: 8px; border-radius: 14px; border-top: 0; font-weight: 600; }
+.as-item:active { opacity: 0.6; }

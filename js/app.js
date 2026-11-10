@@ -10,10 +10,13 @@ import {
 import { $, focusField, openSheet, closeSheet, closeSheets, closeTopSheet, isOpen, shake, toast } from './ui.js';
 import { initCategories, openCategories } from './categories.js';
 import { initDebts, renderDebts, openDebtSheet } from './debts.js';
-import { initBackup, openSettings } from './backup.js';
+import { initBackup, renderSettings } from './backup.js';
 import { initStats, renderStats } from './stats.js';
-import { migrateOldLimits } from './plan.js';
-import { initLimitForm, showLimitForm, saveLimitForm, renderPlanCard, planToastAfterSave, BUDGET } from './planui.js';
+import { migrateOldLimits, migratePlansToTemplates, refreshCurrentSnapshot } from './plan.js';
+import {
+  initLimitForm, showLimitForm, saveLimitForm, renderPlanCard, planToastAfterSave, BUDGET,
+  initTemplatesSettings, renderTemplatesSettings,
+} from './planui.js';
 import { initTestMode } from './testmode.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
@@ -47,6 +50,8 @@ async function init() {
   await db.openDB();
   await seedCategories();
   await migrateOldLimits();
+  await migratePlansToTemplates();
+  await refreshCurrentSnapshot(); // запоминаем план текущего месяца на будущее
   state.categories = await db.getAll('categories');
 
   // Просим браузер не удалять наши данные при нехватке места
@@ -58,6 +63,7 @@ async function init() {
   initCategories();
   initStats();
   initLimitForm();
+  initTemplatesSettings();
   initTestMode();
   await renderExpenses();
 }
@@ -218,6 +224,7 @@ function renderTypeToggle() {
   $('tx-categories').hidden = isLimit;
   $('tx-fields').hidden = isLimit;
   $('limit-fields').hidden = !isLimit;
+  $('plan-picker').hidden = !isLimit;
   $('amount-caption').hidden = !isLimit;
   $('tx-delete').hidden = isLimit || !state.editing;
 }
@@ -330,6 +337,7 @@ function switchView(name) {
   $('fab').classList.toggle('hidden', !['expenses', 'debts'].includes(name));
   if (name === 'debts') renderDebts();
   if (name === 'stats') renderStats();
+  if (name === 'settings') { renderSettings(); renderTemplatesSettings(); }
   window.scrollTo(0, 0);
 }
 
@@ -342,9 +350,6 @@ function bindEvents() {
     if (state.view === 'debts') openDebtSheet();
     else openTxSheet();
   });
-  for (const b of document.querySelectorAll('.settings-btn')) {
-    b.addEventListener('click', openSettings);
-  }
   $('prev-month').addEventListener('click', () => shiftMonth(-1));
   $('next-month').addEventListener('click', () => shiftMonth(1));
 
@@ -405,6 +410,7 @@ function bindEvents() {
   // План изменился — перерисовываем
   document.addEventListener('plan-changed', async () => {
     await renderExpenses();
+    if (state.view === 'settings') await renderTemplatesSettings();
     if (state.view === 'stats') await renderStats();
   });
 

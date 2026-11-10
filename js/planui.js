@@ -9,11 +9,12 @@ import * as db from './db.js';
 import {
   formatMoney, parseMoney, moneyToInput, escapeHTML, todayISO, MONTHS, MONTHS_GEN, now,
 } from './utils.js';
-import { $, shake, toast } from './ui.js';
+import { $, shake, toast, actionSheet } from './ui.js';
 import {
   PERIODS, getPlan, getPlanForEdit, savePlan, setLimit, removeLimit, dailyRate,
   monthAllocation, planSummary, todayState, monthResult, currentMonthKey,
-  monthBounds, prevMonthKey,
+  monthBounds, prevMonthKey, listTemplates, newTemplate, saveTemplate, deleteTemplate,
+  applyTemplate, monthsUsing, getTemplate,
 } from './plan.js';
 
 const BUDGET = '__budget__'; // особый «чип» — бюджет месяца
@@ -70,7 +71,81 @@ function selectChip(id) {
   renderLimitForm();
 }
 
+/** Строка «План: Мой план ▾» над суммой. */
+function renderPlanPicker() {
+  const p = form.plan;
+  const name = escapeHTML(p.name || 'Мой план');
+  $('plan-picker').innerHTML = p.mode === 'snapshot'
+    ? `<span class="muted">План «${name}» · ${monthName(p.month)} прошёл — меняется только он</span>`
+    : `<button type="button" class="picker-btn" id="plan-picker-btn">План: <b>${name}</b> ▾</button>
+       <span class="muted small">${p.isNew ? 'новый шаблон' : 'изменения — для этого и следующих месяцев'}</span>`;
+}
+
+/** Меню выбора шаблона для месяца формы. */
+async function openPlanPicker() {
+  const key = form.plan.month;
+  const templates = await listTemplates();
+  const items = templates.map((t) => ({
+    label: t.name,
+    sub: planSub(t),
+    checked: t.id === form.plan.templateId,
+    async onClick() {
+      await applyTemplate(key, t.id);
+      toast(`На ${monthName(key)}: план «${t.name}»`);
+      document.dispatchEvent(new Event('plan-changed'));
+      await reloadForm();
+    },
+  }));
+  items.push({
+    label: '＋ Новый пустой план',
+    async onClick() {
+      const name = askName('Название нового плана', 'Новый план');
+      if (!name) return;
+      const t = newTemplate(name);
+      await saveTemplate(t);
+      await applyTemplate(key, t.id);
+      document.dispatchEvent(new Event('plan-changed'));
+      await reloadForm(BUDGET);
+    },
+  });
+  if (!form.plan.isNew) {
+    items.push({
+      label: `⧉ Копия «${form.plan.name}»`,
+      async onClick() {
+        const name = askName('Название копии', `${form.plan.name} (копия)`);
+        if (!name) return;
+        const t = newTemplate(name, form.plan);
+        await saveTemplate(t);
+        await applyTemplate(key, t.id);
+        document.dispatchEvent(new Event('plan-changed'));
+        await reloadForm();
+      },
+    });
+  }
+  actionSheet(`План на ${monthName(key)}`, items);
+}
+
+async function reloadForm(select = null) {
+  const keep = select || form.selected;
+  form.plan = await getPlanForEdit(form.plan.month);
+  selectChip(keep);
+}
+
+function askName(question, value) {
+  const name = (prompt(question, value) || '').trim();
+  return name.slice(0, 40);
+}
+
+/** Краткое описание шаблона: «20 000 ₽ · 3 лимита». */
+function planSub(t) {
+  const parts = [];
+  if (t.income) parts.push(`бюджет ${formatMoney(t.income)}`);
+  parts.push(t.limits.length ? `лимитов: ${t.limits.length}` : 'без лимитов');
+  return parts.join(' · ');
+}
+
 function renderLimitForm() {
+  renderPlanPicker();
   const isBudget = form.selected === BUDGET;
   $('amount-caption').textContent = isBudget
     ? `Бюджет на ${monthName(form.plan.month)}`
@@ -182,6 +257,95 @@ export function initLimitForm() {
   $('tx-amount').addEventListener('input', () => { if (form.plan && !$('limit-fields').hidden) renderLimitInfo(); });
   $('budget-savings').addEventListener('input', renderLimitInfo);
   $('limit-delete').addEventListener('click', deleteLimit);
+  $('plan-picker').addEventListener('click', (e) => {
+    if (e.target.closest('#plan-picker-btn')) openPlanPicker();
+  });
+}
+
+// =====================================================================
+// НАСТРОЙКИ → «ПЛАНЫ»: список шаблонов
+// =====================================================================
+export async function renderTemplatesSettings() {
+  const box = $('tpl-list');
+  const templates = await listTemplates();
+  const cur = currentMonthKey();
+  const curPlan = await getPlan(cur);
+
+  if (!templates.length) {
+    box.innerHTML = `<p class="small muted" style="margin:0">Планов пока нет. Составьте первый: «+» → «Лимит».</p>`;
+    return;
+  }
+  box.innerHTML = templates.map((t) => `
+    <button type="button" class="tpl-row" data-tpl="${t.id}">
+      <span class="tpl-main">
+        <b>${escapeHTML(t.name)}</b>
+        <small class="muted">${planSub(t)}</small>
+      </span>
+      ${curPlan && curPlan.templateId === t.id ? `<span class="badge">в ${monthName(cur).slice(0, 3)}.</span>` : ''}
+      <span class="muted">⋯</span>
+    </button>`).join('');
+}
+
+async function templateActions(id) {
+  const t = await getTemplate(id);
+  const cur = currentMonthKey();
+  actionSheet(`«${t.name}»`, [
+    {
+      label: `Выбрать на ${monthName(cur)}`,
+      async onClick() {
+        await applyTemplate(cur, t.id);
+        toast(`На ${monthName(cur)}: план «${t.name}»`);
+        document.dispatchEvent(new Event('plan-changed'));
+      },
+    },
+    {
+      label: 'Переименовать',
+      async onClick() {
+        const name = askName('Новое название', t.name);
+        if (!name) return;
+        t.name = name;
+        await saveTemplate(t);
+        document.dispatchEvent(new Event('plan-changed'));
+      },
+    },
+    {
+      label: 'Сделать копию',
+      async onClick() {
+        const name = askName('Название копии', `${t.name} (копия)`);
+        if (!name) return;
+        await saveTemplate(newTemplate(name, t));
+        document.dispatchEvent(new Event('plan-changed'));
+      },
+    },
+    {
+      label: 'Удалить',
+      danger: true,
+      async onClick() {
+        const used = await monthsUsing(t.id);
+        if (used.length) {
+          toast(`План выбран на ${used.map(monthName).join(', ')} — сначала выберите другой`, 4000);
+          return;
+        }
+        if (!confirm(`Удалить план «${t.name}»? Итоги прошлых месяцев сохранятся.`)) return;
+        await deleteTemplate(t.id);
+        document.dispatchEvent(new Event('plan-changed'));
+      },
+    },
+  ]);
+}
+
+export function initTemplatesSettings() {
+  $('tpl-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tpl]');
+    if (b) templateActions(b.dataset.tpl);
+  });
+  $('tpl-new').addEventListener('click', async () => {
+    const name = askName('Название нового плана', 'Новый план');
+    if (!name) return;
+    await saveTemplate(newTemplate(name));
+    document.dispatchEvent(new Event('plan-changed'));
+    toast(`План «${name}» создан — выберите его и задайте лимиты`, 3500);
+  });
 }
 
 // =====================================================================
@@ -286,7 +450,7 @@ export async function renderPlanCard(viewKey, monthItems) {
 
   card.innerHTML = `<section class="card plan-card">
     <div class="card-head">
-      <h3>План на ${monthName(key)}</h3>
+      <h3>План на ${monthName(key)} <small class="muted">· ${escapeHTML(plan.name || '')}</small></h3>
       <button type="button" class="link-btn small-link" data-plan-edit="${BUDGET}">Изменить</button>
     </div>
     ${head}
@@ -333,10 +497,10 @@ async function renderPlanOverview(key) {
 
   card.innerHTML = `<section class="card plan-card">
     <div class="card-head">
-      <h3>План на ${mName}</h3>
+      <h3>План на ${mName} <small class="muted">· ${escapeHTML(plan.name || '')}</small></h3>
       <button type="button" class="link-btn small-link" ${edit}>Изменить</button>
     </div>
-    ${plan.inherited ? '<p class="small muted" style="margin:0 0 6px">Взят из прошлого месяца — нажмите «Изменить», чтобы поменять только этот месяц.</p>' : ''}
+    ${plan.inherited && !plan.past ? '<p class="small muted" style="margin:0 0 6px">Тот же план, что и в прошлом месяце. Другой можно выбрать в «Изменить» → «План ▾».</p>' : ''}
     ${plan.income > 0 ? `<div class="plan-formula">${formatMoney(plan.income)}${plan.savings ? ` − ${formatMoney(plan.savings)} в копилку` : ''}${sum.allocated ? ` − ${formatMoney(sum.allocated)} лимиты` : ''} = <b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)} свободно</b></div>` : ''}
     ${rows ? `<div class="section-title">Лимиты</div>${rows}` : ''}
   </section>`;
