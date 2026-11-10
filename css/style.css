@@ -720,3 +720,13 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
   -webkit-appearance: none; appearance: none;
 }
 .wd-grid input:focus { outline: 2px solid var(--accent); }
+
+/* 6.6.1: кнопка «Добавить лимит» */
+.add-limit-btn {
+  display: block; width: 100%; min-height: 50px; margin-bottom: 12px;
+  border-radius: 12px; font-size: 17px; font-weight: 600;
+  background: var(--chip); color: var(--muted);
+  transition: background 0.2s, color 0.2s, transform 0.1s;
+}
+.add-limit-btn.ready { background: var(--income); color: #fff; }
+.add-limit-btn.ready:active { transform: scale(0.98); }

@@ -26,6 +26,8 @@ const form = {
   selected: BUDGET,    // выбранный чип: BUDGET или id категории
   period: 'day',
   uneven: false,       // включены разные суммы по дням недели
+  dirty: false,        // в полях есть несохранённые изменения
+  drafts: {},          // несохранённый ввод по каждой плитке: { [id]: {...} }
 };
 
 function monthNameGen(key) {
@@ -44,6 +46,8 @@ function monthName(key) {
  */
 export async function showLimitForm(categoryId = null, monthKey = currentMonthKey()) {
   form.plan = await getPlanForEdit(monthKey);
+  form.drafts = {};
+  form.dirty = false;
   form.categories = (await db.getAll('categories'))
     .filter((c) => c.type === 'expense' && !c.archived)
     .sort((a, b) => a.order - b.order);
@@ -92,8 +96,45 @@ function setUneven(on) {
   }
 }
 
+// ---------- Черновики: набранные числа не теряются при смене плитки ----------
+function captureDraft() {
+  return {
+    amount: $('tx-amount').value,
+    savings: $('budget-savings').value,
+    period: form.period,
+    uneven: form.uneven,
+    wd: wdInputs().map((i) => i.value),
+    weekday: $('wd-weekday').value,
+    weekend: $('wd-weekend').value,
+  };
+}
+function restoreDraft(d) {
+  $('tx-amount').value = d.amount;
+  $('budget-savings').value = d.savings;
+  form.period = d.period;
+  form.uneven = d.uneven;
+  wdInputs().forEach((i, k) => { i.value = d.wd[k]; });
+  $('wd-weekday').value = d.weekday;
+  $('wd-weekend').value = d.weekend;
+}
+
+/** Пользователь что-то изменил в полях. */
+function markDirty() {
+  form.dirty = true;
+  renderAddButton();
+}
+
 function selectChip(id) {
+  // Уходим с плитки с несохранённым вводом — запоминаем его
+  if (form.dirty && form.selected) form.drafts[form.selected] = captureDraft();
   form.selected = id;
+  if (form.drafts[id]) {
+    restoreDraft(form.drafts[id]);
+    form.dirty = true;
+    renderLimitForm();
+    return;
+  }
+  form.dirty = false;
   if (id === BUDGET) {
     $('tx-amount').value = form.plan.income ? moneyToInput(form.plan.income) : '';
     $('budget-savings').value = form.plan.savings ? moneyToInput(form.plan.savings) : '';
@@ -165,6 +206,8 @@ async function openPlanPicker() {
 async function reloadForm(select = null) {
   const keep = select || form.selected;
   form.plan = await getPlanForEdit(form.plan.month);
+  form.drafts = {}; // другой план — черновики прошлого не переносим
+  form.dirty = false;
   selectChip(keep);
 }
 
@@ -192,12 +235,12 @@ function renderLimitForm() {
   const budgetSub = form.plan.income ? formatMoney(form.plan.income) : 'не задан';
   $('limit-categories').innerHTML = `
     <button type="button" class="cat-chip ${isBudget ? 'active' : ''}" data-id="${BUDGET}">
-      <span class="e">💰</span><span class="n">Бюджет</span><span class="sub">${budgetSub}</span>
+      <span class="e">💰</span><span class="n">Бюджет</span><span class="sub">${form.drafts[BUDGET] && !isBudget ? '✎ не сохранено' : budgetSub}</span>
     </button>` + form.categories.map((c) => {
     const l = limitOf(c.id);
     return `<button type="button" class="cat-chip ${c.id === form.selected ? 'active' : ''}" data-id="${c.id}">
       <span class="e">${c.emoji}</span><span class="n">${escapeHTML(c.name)}</span>
-      <span class="sub">${l ? shortLimit(l) : '—'}</span>
+      <span class="sub">${form.drafts[c.id] && c.id !== form.selected ? '✎ не сохранено' : l ? shortLimit(l) : '—'}</span>
     </button>`;
   }).join('');
 
@@ -215,6 +258,7 @@ function renderLimitForm() {
   }
   $('limit-delete').hidden = isBudget || !limitOf(form.selected);
   renderLimitInfo();
+  renderAddButton();
 }
 
 /** Подсказка с пересчётом: сколько это в день / неделю / месяц и что останется. */
@@ -264,31 +308,82 @@ function renderLimitInfo() {
   $('limit-info').innerHTML = lines.map((l) => `<div>${l}</div>`).join('');
 }
 
-/** Кнопка «Готово» в режиме лимита. true — сохранено. */
-export async function saveLimitForm() {
+/** Введено ли что-то, что можно сохранить. */
+function inputValid() {
+  const amount = parseMoney($('tx-amount').value);
+  if (form.selected === BUDGET) return amount > 0;
+  if (form.uneven) {
+    const w = readWeekdays();
+    return !!w && w.some((x) => x > 0);
+  }
+  return amount > 0;
+}
+
+/** Зелёная кнопка «Добавить лимит» — активна, когда есть что сохранить. */
+function renderAddButton() {
+  const btn = $('limit-add');
+  const isBudget = form.selected === BUDGET;
+  const cat = form.categories.find((c) => c.id === form.selected);
+  // В названии кнопки — категория, чтобы было видно, к чему относится число
+  btn.textContent = isBudget ? 'Сохранить бюджет'
+    : `${limitOf(form.selected) ? 'Сохранить лимит' : 'Добавить лимит'} · ${cat ? `${cat.emoji} ${cat.name}` : ''}`;
+  const ready = form.dirty && inputValid();
+  btn.disabled = !ready;
+  btn.classList.toggle('ready', ready);
+}
+
+/**
+ * Сохранить то, что в полях. Возвращает текст для уведомления или null,
+ * если в полях ошибка.
+ */
+async function persist() {
   const amount = parseMoney($('tx-amount').value);
   if (form.selected === BUDGET) {
-    if (!(amount > 0)) { shake($('tx-amount')); return false; }
+    if (!(amount > 0)) { shake($('tx-amount')); return null; }
     const savingsText = $('budget-savings').value.trim();
     const savings = savingsText ? parseMoney(savingsText) : 0;
-    if (!(savings >= 0) || savings > amount) { shake($('budget-savings')); toast('Копилка больше бюджета'); return false; }
+    if (!(savings >= 0) || savings > amount) { shake($('budget-savings')); toast('Копилка больше бюджета'); return null; }
     form.plan.income = amount;
     form.plan.savings = savings;
     await savePlan(form.plan);
-    toast(`План на ${monthName(form.plan.month)}: на траты ${formatMoney(amount - savings)}`);
-    return true;
+    return `Бюджет сохранён: на траты ${formatMoney(amount - savings)}`;
   }
   const cat = form.categories.find((c) => c.id === form.selected);
+  const existed = !!limitOf(form.selected);
   if (form.uneven) {
     const w = readWeekdays();
-    if (!w || !w.some((x) => x > 0)) { shake($('wd-grid')); toast('Проверьте суммы по дням'); return false; }
+    if (!w || !w.some((x) => x > 0)) { shake($('wd-grid')); toast('Проверьте суммы по дням'); return null; }
     setLimit(form.plan, form.selected, 'day', 0, w);
   } else {
-    if (!(amount > 0)) { shake($('tx-amount')); return false; }
+    if (!(amount > 0)) { shake($('tx-amount')); return null; }
     setLimit(form.plan, form.selected, form.period, amount);
   }
   await savePlan(form.plan);
-  toast(`Лимит «${cat.name}»: ${shortLimit(limitOf(form.selected))}`);
+  return `${existed ? 'Лимит обновлён' : 'Лимит добавлен'}: ${cat.emoji} ${cat.name} — ${shortLimit(limitOf(form.selected))}`;
+}
+
+/** Кнопка «Добавить лимит»: сохраняем, панель остаётся открытой. */
+async function addLimit() {
+  const msg = await persist();
+  if (!msg) return;
+  delete form.drafts[form.selected];
+  form.dirty = false;
+  document.activeElement?.blur();
+  const keepSelected = form.selected;
+  form.plan = await getPlanForEdit(form.plan.month);
+  form.selected = keepSelected;
+  renderLimitForm();
+  toast(`✓ ${msg}`, 2500);
+  document.dispatchEvent(new Event('plan-changed'));
+}
+
+/** Кнопка «Готово» вверху: сохранить (если есть что) и закрыть. true — можно закрывать. */
+export async function saveLimitForm() {
+  if (!form.dirty) return true;
+  const msg = await persist();
+  if (!msg) return false;
+  form.dirty = false;
+  toast(msg);
   return true;
 }
 
@@ -297,6 +392,8 @@ async function deleteLimit() {
   if (!confirm(`Убрать лимит для «${cat.name}»?`)) return;
   removeLimit(form.plan, form.selected);
   await savePlan(form.plan);
+  delete form.drafts[form.selected];
+  form.dirty = false;
   toast('Лимит убран');
   document.dispatchEvent(new Event('plan-changed'));
   selectChip(form.selected);
@@ -310,18 +407,21 @@ export function initLimitForm() {
   $('limit-period').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (form.period !== b.dataset.period) form.dirty = true;
     form.period = b.dataset.period;
     renderLimitForm();
   });
-  $('wd-toggle').addEventListener('change', (e) => { setUneven(e.target.checked); renderLimitForm(); });
+  $('wd-toggle').addEventListener('change', (e) => { setUneven(e.target.checked); form.dirty = true; renderLimitForm(); });
   // «Будни» / «Выходные» — заполняют сразу несколько дней
   $('wd-weekday').addEventListener('input', (e) => {
     wdInputs().slice(0, 5).forEach((i) => { i.value = e.target.value; });
     renderLimitInfo();
+    markDirty();
   });
   $('wd-weekend').addEventListener('input', (e) => {
     wdInputs().slice(5).forEach((i) => { i.value = e.target.value; });
     renderLimitInfo();
+    markDirty();
   });
   $('wd-grid').addEventListener('input', () => {
     const w = readWeekdays();
@@ -331,9 +431,15 @@ export function initLimitForm() {
       $('wd-weekend').value = w[5] === w[6] ? moneyToInput(w[5]) : '';
     }
     renderLimitInfo();
+    markDirty();
   });
-  $('tx-amount').addEventListener('input', () => { if (form.plan && !$('limit-fields').hidden) renderLimitInfo(); });
-  $('budget-savings').addEventListener('input', renderLimitInfo);
+  $('tx-amount').addEventListener('input', () => {
+    if (!form.plan || $('limit-fields').hidden) return;
+    renderLimitInfo();
+    markDirty();
+  });
+  $('budget-savings').addEventListener('input', () => { renderLimitInfo(); markDirty(); });
+  $('limit-add').addEventListener('click', addLimit);
   $('limit-delete').addEventListener('click', deleteLimit);
   $('plan-picker').addEventListener('click', (e) => {
     if (e.target.closest('#plan-picker-btn')) openPlanPicker();
