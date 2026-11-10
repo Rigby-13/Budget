@@ -14,7 +14,7 @@ import {
   PERIODS, getPlan, getPlanForEdit, savePlan, setLimit, removeLimit, dailyRate,
   monthAllocation, planSummary, todayState, monthResult, currentMonthKey,
   monthBounds, prevMonthKey, listTemplates, newTemplate, saveTemplate, deleteTemplate,
-  applyTemplate, monthsUsing, getTemplate,
+  applyTemplate, monthsUsing, getTemplate, limitLabel,
 } from './plan.js';
 import { monthCloseBlock } from './savings.js';
 
@@ -25,6 +25,7 @@ const form = {
   categories: [],
   selected: BUDGET,    // выбранный чип: BUDGET или id категории
   period: 'day',
+  uneven: false,       // включены разные суммы по дням недели
 };
 
 function monthNameGen(key) {
@@ -56,7 +57,39 @@ function limitOf(categoryId) {
 }
 
 function shortLimit(l) {
-  return `${formatMoney(l.amount)} ${PERIODS[l.period].short}`;
+  return limitLabel(l, formatMoney);
+}
+
+// ---------- Разные суммы по дням недели ----------
+const wdInputs = () => [...$('wd-grid').querySelectorAll('input')];
+
+/** Заполнить 7 полей Пн–Вс (копейки) и быстрые поля «Будни / Выходные». */
+function fillWeekdays(w) {
+  wdInputs().forEach((inp, i) => { inp.value = w[i] ? moneyToInput(w[i]) : '0'; });
+  const same = (arr) => arr.every((x) => x === arr[0]);
+  $('wd-weekday').value = same(w.slice(0, 5)) ? moneyToInput(w[0]) : '';
+  $('wd-weekend').value = w[5] === w[6] ? moneyToInput(w[5]) : '';
+}
+
+/** Прочитать 7 полей. null — если в каком-то поле ошибка. */
+function readWeekdays() {
+  const w = wdInputs().map((inp) => {
+    const t = inp.value.trim();
+    return t === '' ? 0 : parseMoney(t);
+  });
+  return w.every((x) => x >= 0) ? w : null;
+}
+
+function setUneven(on) {
+  form.uneven = on;
+  $('wd-toggle').checked = on;
+  if (on) {
+    // Стартовые значения — из суммы в большом поле
+    const amount = parseMoney($('tx-amount').value) || 0;
+    const base = form.period === 'week' ? Math.round(amount / 7) : amount;
+    if (!wdInputs().some((i) => parseMoney(i.value) > 0)) fillWeekdays(Array(7).fill(base));
+    form.period = 'day';
+  }
 }
 
 function selectChip(id) {
@@ -67,7 +100,10 @@ function selectChip(id) {
   } else {
     const l = limitOf(id);
     form.period = l ? l.period : 'day';
-    $('tx-amount').value = l ? moneyToInput(l.amount) : '';
+    $('tx-amount').value = l && !l.weekdays ? moneyToInput(l.amount) : '';
+    form.uneven = !!(l && l.weekdays);
+    if (form.uneven) fillWeekdays(l.weekdays);
+    else wdInputs().forEach((i) => { i.value = ''; });
   }
   renderLimitForm();
 }
@@ -167,6 +203,13 @@ function renderLimitForm() {
 
   $('limit-period').hidden = isBudget;
   $('budget-fields').hidden = !isBudget;
+  // Разные суммы по дням — только для лимита в день / неделю
+  $('wd-toggle-row').hidden = isBudget || form.period === 'month';
+  if (isBudget || form.period === 'month') form.uneven = false;
+  $('wd-toggle').checked = form.uneven;
+  $('wd-fields').hidden = !form.uneven;
+  $('amount-wrap').hidden = form.uneven;
+  if (form.uneven) $('amount-caption').textContent = 'Лимит по дням недели';
   for (const b of $('limit-period').querySelectorAll('button')) {
     b.classList.toggle('active', b.dataset.period === form.period);
   }
@@ -184,6 +227,15 @@ function renderLimitInfo() {
   if (form.selected === BUDGET) {
     plan.income = amount;
     plan.savings = parseMoney($('budget-savings').value) || 0;
+  } else if (form.uneven) {
+    const w = readWeekdays();
+    if (w && w.some((x) => x > 0)) {
+      setLimit(plan, form.selected, 'day', 0, w);
+      const l = plan.limits.find((x) => x.categoryId === form.selected);
+      lines.push(`= <b>${formatMoney(w.reduce((a, b) => a + b, 0))} в неделю</b>`);
+      lines.push(`≈ ${formatMoney(monthAllocation(l, key))} за ${monthName(key)}`);
+      lines.push('Экономия переходит на следующий день, перерасход — вычитается.');
+    }
   } else if (amount > 0) {
     setLimit(plan, form.selected, form.period, amount);
     const l = plan.limits.find((x) => x.categoryId === form.selected);
@@ -226,11 +278,17 @@ export async function saveLimitForm() {
     toast(`План на ${monthName(form.plan.month)}: на траты ${formatMoney(amount - savings)}`);
     return true;
   }
-  if (!(amount > 0)) { shake($('tx-amount')); return false; }
-  setLimit(form.plan, form.selected, form.period, amount);
-  await savePlan(form.plan);
   const cat = form.categories.find((c) => c.id === form.selected);
-  toast(`Лимит «${cat.name}»: ${formatMoney(amount)} ${PERIODS[form.period].short}`);
+  if (form.uneven) {
+    const w = readWeekdays();
+    if (!w || !w.some((x) => x > 0)) { shake($('wd-grid')); toast('Проверьте суммы по дням'); return false; }
+    setLimit(form.plan, form.selected, 'day', 0, w);
+  } else {
+    if (!(amount > 0)) { shake($('tx-amount')); return false; }
+    setLimit(form.plan, form.selected, form.period, amount);
+  }
+  await savePlan(form.plan);
+  toast(`Лимит «${cat.name}»: ${shortLimit(limitOf(form.selected))}`);
   return true;
 }
 
@@ -254,6 +312,25 @@ export function initLimitForm() {
     if (!b) return;
     form.period = b.dataset.period;
     renderLimitForm();
+  });
+  $('wd-toggle').addEventListener('change', (e) => { setUneven(e.target.checked); renderLimitForm(); });
+  // «Будни» / «Выходные» — заполняют сразу несколько дней
+  $('wd-weekday').addEventListener('input', (e) => {
+    wdInputs().slice(0, 5).forEach((i) => { i.value = e.target.value; });
+    renderLimitInfo();
+  });
+  $('wd-weekend').addEventListener('input', (e) => {
+    wdInputs().slice(5).forEach((i) => { i.value = e.target.value; });
+    renderLimitInfo();
+  });
+  $('wd-grid').addEventListener('input', () => {
+    const w = readWeekdays();
+    if (w) {
+      const same = (arr) => arr.every((x) => x === arr[0]);
+      $('wd-weekday').value = same(w.slice(0, 5)) ? moneyToInput(w[0]) : '';
+      $('wd-weekend').value = w[5] === w[6] ? moneyToInput(w[5]) : '';
+    }
+    renderLimitInfo();
   });
   $('tx-amount').addEventListener('input', () => { if (form.plan && !$('limit-fields').hidden) renderLimitInfo(); });
   $('budget-savings').addEventListener('input', renderLimitInfo);
@@ -402,7 +479,7 @@ export async function renderPlanCard(viewKey, monthItems) {
         <span class="hero-label">${main.remaining < 0 ? 'Перерасход сегодня' : 'Сегодня можно'}</span>
         <span class="hero-amount ${st0}">${formatMoney(Math.abs(main.remaining))}</span>
         <span class="progress big limit-bar ${st0}"><i style="width:${pctOf(main)}%"></i></span>
-        <span class="hero-sub">${main.category.emoji} ${escapeHTML(main.category.name)} · ${formatMoney(main.base)} в день${carryText(main)}${main.remaining < 0 ? ' · <span class="negative">вычтется завтра</span>' : ''}</span>
+        <span class="hero-sub">${main.category.emoji} ${escapeHTML(main.category.name)} · ${formatMoney(main.base)} ${main.limit.weekdays ? 'на сегодня' : 'в день'}${carryText(main)}${main.remaining < 0 ? ' · <span class="negative">вычтется завтра</span>' : ''}</span>
       </button>
       ${rest.map((r) => `<button type="button" class="hero-row" data-quick-add="${r.category.id}">
         <span>${r.category.emoji} ${escapeHTML(r.category.name)}</span>
@@ -429,7 +506,7 @@ export async function renderPlanCard(viewKey, monthItems) {
   const dailyRows = daily.map((r) => `<button type="button" class="plan-row" data-plan-edit="${r.category.id}">
       <div class="plan-row-head">
         <span class="today-name">${r.category.emoji} ${escapeHTML(r.category.name)}</span>
-        <span class="today-val">${formatMoney(r.limit.amount)} ${PERIODS[r.limit.period].short}</span>
+        <span class="today-val">${shortLimit(r.limit)}</span>
       </div>
       <div class="plan-row-sub"><span>сегодня ${formatMoney(Math.max(0, r.todayLimit))} = ${formatMoney(r.base)}${carryText(r)}</span></div>
     </button>`).join('');
@@ -490,7 +567,7 @@ async function renderPlanOverview(key) {
     return `<button type="button" class="plan-row" data-plan-edit="${c.id}" data-plan-month="${key}">
       <div class="plan-row-head">
         <span class="today-name">${c.emoji} ${escapeHTML(c.name)}</span>
-        <span class="today-val">${formatMoney(l.amount)} ${PERIODS[l.period].short}</span>
+        <span class="today-val">${shortLimit(l)}</span>
       </div>
       <div class="plan-row-sub"><span>≈ ${formatMoney(monthAllocation(l, key))} за месяц</span></div>
     </button>`;

@@ -74,7 +74,7 @@ export function newTemplate(name, from = null) {
     id: 'tpl:' + db.newId(), name, createdAt: Date.now(),
     income: from ? from.income : 0,
     savings: from ? from.savings : 0,
-    limits: from ? from.limits.map(({ categoryId, period, amount }) => ({ categoryId, period, amount })) : [],
+    limits: from ? from.limits.map(cleanLimit) : [],
   };
 }
 export async function saveTemplate(t) {
@@ -209,7 +209,7 @@ export async function savePlan(plan) {
   const values = {
     income: plan.income,
     savings: plan.savings,
-    limits: plan.limits.map(({ categoryId, period, amount }) => ({ categoryId, period, amount })),
+    limits: plan.limits.map(cleanLimit),
   };
   // Даты «since» (лимит добавлен посреди месяца) храним в записи месяца
   const since = {};
@@ -234,19 +234,34 @@ export async function savePlan(plan) {
   await refreshCurrentSnapshot();
 }
 
-/** Добавить или изменить лимит категории в плане (без сохранения). */
-export function setLimit(plan, categoryId, period, amount) {
+/** Лимит без служебных полей (since) — для хранения в шаблоне. */
+export function cleanLimit(l) {
+  const c = { categoryId: l.categoryId, period: l.period, amount: l.amount };
+  if (l.weekdays) c.weekdays = [...l.weekdays];
+  return c;
+}
+
+/**
+ * Добавить или изменить лимит категории в плане (без сохранения).
+ * weekdays — разные суммы по дням недели [пн, вт, ср, чт, пт, сб, вс] (копейки).
+ */
+export function setLimit(plan, categoryId, period, amount, weekdays = null) {
+  if (weekdays) {
+    period = 'day';
+    amount = Math.round(weekdays.reduce((a, b) => a + b, 0) / 7); // в среднем в день
+  }
   const existing = plan.limits.find((l) => l.categoryId === categoryId);
   if (existing) {
     existing.period = period;
     existing.amount = amount;
+    if (weekdays) existing.weekdays = weekdays; else delete existing.weekdays;
   } else {
     // Новый лимит посреди ТЕКУЩЕГО месяца считается с сегодняшнего дня,
     // в будущем или прошлом месяце — с 1-го числа
     const { from, to } = monthBounds(plan.month);
     const today = todayISO();
     const since = today > from && today <= to ? today : from;
-    plan.limits.push({ categoryId, period, amount, since });
+    plan.limits.push({ categoryId, period, amount, since, ...(weekdays ? { weekdays } : {}) });
   }
 }
 export function removeLimit(plan, categoryId) {
@@ -263,12 +278,43 @@ export function dailyRate(limit) {
   return null;
 }
 
+/** Номер дня недели: 0 — понедельник … 6 — воскресенье. */
+function weekdayIndex(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return (new Date(y, m - 1, d, 12).getDay() + 6) % 7;
+}
+
+/** Лимит на конкретный день (с учётом разных сумм по дням недели). */
+export function rateOn(limit, iso) {
+  if (limit.weekdays) return limit.weekdays[weekdayIndex(iso)];
+  return dailyRate(limit);
+}
+
+/** Сколько лимит разрешает потратить за даты [from, to] включительно. */
+export function allowedBetween(limit, from, to) {
+  if (to < from) return 0;
+  if (!limit.weekdays) return Math.round(dailyRate(limit) * (daysBetween(from, to) + 1));
+  let sum = 0;
+  for (let d = from; d <= to; d = addDays(d, 1)) sum += rateOn(limit, d);
+  return sum;
+}
+
+/** Подпись лимита: «300 ₽ в день», «2 100 ₽ в неделю», «300 ₽ будни · 500 ₽ выходные». */
+export function limitLabel(l, fmt) {
+  if (l.weekdays) {
+    const w = l.weekdays;
+    const weekdaysSame = w.slice(0, 5).every((x) => x === w[0]);
+    if (weekdaysSame && w[5] === w[6]) return `${fmt(w[0])} будни · ${fmt(w[5])} выходные`;
+    return `по дням недели · ${fmt(w.reduce((a, b) => a + b, 0))} в неделю`;
+  }
+  return `${fmt(l.amount)} ${PERIODS[l.period].short}`;
+}
+
 /** Сколько лимит «съедает» из бюджета за месяц. */
 export function monthAllocation(limit, key) {
   if (limit.period === 'month') return limit.amount;
   const { to } = monthBounds(key);
-  const days = daysBetween(limit.since, to) + 1;
-  return Math.round(dailyRate(limit) * Math.max(0, days));
+  return allowedBetween(limit, limit.since, to);
 }
 
 /** Сводка плана: на траты, распределено по лимитам, свободно. */
@@ -322,11 +368,9 @@ export function todayState(plan, categories, monthTx) {
       continue;
     }
     if (l.since > today) continue;
-    const rate = dailyRate(l);
-    const daysBefore = Math.max(0, daysBetween(l.since, today)); // полных дней до сегодня
     const spentBefore = spentIn(monthTx, l.categoryId, l.since, yesterday);
-    const base = Math.round(rate);
-    const todayLimit = Math.round(rate * (daysBefore + 1)) - spentBefore;
+    const base = Math.round(rateOn(l, today));              // лимит именно на сегодня
+    const todayLimit = allowedBetween(l, l.since, today) - spentBefore;
     const carry = todayLimit - base; // + экономия прошлых дней, − перерасход
     const spentToday = spentIn(monthTx, l.categoryId, today, today);
     rows.push({ kind: 'daily', limit: l, category, base, carry, todayLimit, spent: spentToday, remaining: todayLimit - spentToday });
@@ -361,7 +405,7 @@ export function monthResult(plan, categories, monthTx, upto) {
       allocated = l.amount;
     } else {
       if (l.since > upto) continue;
-      allocated = Math.round(dailyRate(l) * (daysBetween(l.since, upto) + 1));
+      allocated = allowedBetween(l, l.since, upto);
     }
     const start = l.period === 'month' || l.since < from ? from : l.since;
     const spent = spentIn(monthTx, l.categoryId, start, upto);
@@ -417,8 +461,8 @@ export async function migrateOldLimits() {
 export async function migratePlansToTemplates() {
   const recs = (await monthRecords()).filter((r) => !('templateId' in r) && 'income' in r);
   if (!recs.length) return;
-  const same = (a, b) => JSON.stringify([a.income, a.savings, a.limits.map(({ categoryId, period, amount }) => [categoryId, period, amount])])
-    === JSON.stringify([b.income, b.savings, b.limits.map(({ categoryId, period, amount }) => [categoryId, period, amount])]);
+  const same = (a, b) => JSON.stringify([a.income, a.savings, a.limits.map(cleanLimit)])
+    === JSON.stringify([b.income, b.savings, b.limits.map(cleanLimit)]);
   let prev = null;
   let n = 0;
   for (const r of recs) {
