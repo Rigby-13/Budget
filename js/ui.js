@@ -5,18 +5,48 @@
 /** Короткая запись для document.getElementById */
 export const $ = (id) => document.getElementById(id);
 
-/** Открыть выезжающую панель (sheet). */
+// Панели могут открываться одна поверх другой (например, из формы траты
+// открыть список категорий, а из него — редактирование категории).
+// Поэтому храним их стопкой: последняя открытая — сверху.
+const stack = [];
+
+function updateLayers() {
+  stack.forEach((el, i) => { el.style.zIndex = 31 + i * 2; });
+  const bd = $('backdrop');
+  bd.classList.toggle('open', stack.length > 0);
+  bd.style.zIndex = 30 + Math.max(0, stack.length - 1) * 2;
+}
+
+/** Открыть выезжающую панель (sheet) поверх остальных. */
 export function openSheet(el) {
-  $('backdrop').classList.add('open');
+  if (!stack.includes(el)) stack.push(el);
   el.classList.add('open');
   el.querySelector('.sheet-body')?.scrollTo(0, 0);
+  updateLayers();
+}
+
+/** Закрыть одну панель. */
+export function closeSheet(el) {
+  document.activeElement?.blur();
+  el.classList.remove('open');
+  const i = stack.indexOf(el);
+  if (i >= 0) stack.splice(i, 1);
+  updateLayers();
+}
+
+/** Закрыть верхнюю панель (нажатие на затемнённый фон). */
+export function closeTopSheet() {
+  if (stack.length) closeSheet(stack[stack.length - 1]);
 }
 
 /** Закрыть все открытые панели. */
 export function closeSheets() {
-  document.activeElement?.blur();
-  $('backdrop').classList.remove('open');
-  for (const s of document.querySelectorAll('.sheet.open')) s.classList.remove('open');
+  while (stack.length) closeSheet(stack[stack.length - 1]);
+}
+
+/** Открыта ли панель. */
+export function isOpen(el) {
+  return stack.includes(el);
 }
 
 /** Потрясти поле — если в нём ошибка. */

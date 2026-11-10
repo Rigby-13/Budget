@@ -320,3 +320,38 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 .toast { width: max-content; text-align: center; }
 .sheet-header .segmented button { white-space: nowrap; padding: 6px 10px; font-size: 13px; }
 .sheet-header .link-btn { min-width: 0; }
+
+/* =====================================================================
+   Этап 3: категории
+   ===================================================================== */
+.cat-chip.cat-edit { background: transparent; border: 2px dashed var(--line); color: var(--muted); }
+
+.row-btn { display: flex; justify-content: space-between; align-items: center; text-align: left; color: var(--text); }
+
+.cat-row { display: flex; align-items: center; padding-right: 6px; }
+.cat-row + .cat-row { border-top: 0.5px solid var(--line); }
+.cat-row-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; min-height: 56px; text-align: left;
+}
+.cat-row-main:active { background: var(--chip); }
+.cat-row-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.move-btn {
+  width: 40px; height: 40px; border-radius: 20px;
+  font-size: 18px; color: var(--accent);
+}
+.move-btn:active { background: var(--chip); }
+.move-btn:disabled { color: var(--line); }
+.add-cat { margin-top: 12px; }
+
+.emoji-preview {
+  width: 88px; height: 88px; margin: 4px auto 16px;
+  border-radius: 24px; background: var(--card);
+  display: grid; place-items: center; font-size: 48px;
+}
+.emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; margin-bottom: 8px; }
+.emoji-btn {
+  height: 46px; border-radius: 12px; font-size: 24px;
+  background: var(--card); border: 2px solid transparent;
+}
+.emoji-btn.active { border-color: var(--accent); }
