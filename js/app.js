@@ -1,5 +1,5 @@
 // =====================================================================
-// app.js — главная логика приложения (этап 1: траты, список, итоги).
+// app.js — главная логика приложения: запуск, вкладки, траты.
 // =====================================================================
 
 import * as db from './db.js';
@@ -7,6 +7,9 @@ import {
   formatMoney, parseMoney, moneyToInput, MONTHS, todayISO,
   monthRange, dayLabel, escapeHTML,
 } from './utils.js';
+import { $, openSheet, closeSheets, shake, toast } from './ui.js';
+import { initDebts, renderDebts, openDebtSheet } from './debts.js';
+import { initBackup, openSettings } from './backup.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
 const DEFAULT_CATEGORIES = [
@@ -28,10 +31,8 @@ const state = {
   editing: null,             // запись, которую редактируем (или null для новой)
   formType: 'expense',       // 'expense' или 'income' в форме
   formCategoryId: null,      // выбранная категория в форме
+  view: 'expenses',          // текущая вкладка
 };
-
-// Короткая запись для document.getElementById
-const $ = (id) => document.getElementById(id);
 
 // =====================================================================
 // ЗАПУСК
@@ -45,6 +46,8 @@ async function init() {
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 
   bindEvents();
+  initDebts();
+  initBackup();
   await renderExpenses();
 
   // Service worker — нужен для работы без интернета
@@ -140,7 +143,7 @@ function shiftMonth(delta) {
 // =====================================================================
 // ФОРМА ДОБАВЛЕНИЯ / РЕДАКТИРОВАНИЯ
 // =====================================================================
-function openSheet(tx = null) {
+function openTxSheet(tx = null) {
   state.editing = tx;
   state.formType = tx ? tx.type : 'expense';
   state.formCategoryId = tx ? tx.categoryId : lastCategory(state.formType);
@@ -153,8 +156,7 @@ function openSheet(tx = null) {
   renderTypeToggle();
   renderCategoryChips();
 
-  $('backdrop').classList.add('open');
-  $('tx-sheet').classList.add('open');
+  openSheet($('tx-sheet'));
 
   // Для новой записи сразу открываем клавиатуру с цифрами.
   // На iPhone focus() работает только прямо внутри обработчика нажатия.
@@ -162,9 +164,7 @@ function openSheet(tx = null) {
 }
 
 function closeSheet() {
-  document.activeElement?.blur();
-  $('backdrop').classList.remove('open');
-  $('tx-sheet').classList.remove('open');
+  closeSheets();
   state.editing = null;
 }
 
@@ -238,30 +238,17 @@ async function deleteCurrent() {
 // =====================================================================
 // МЕЛОЧИ ИНТЕРФЕЙСА
 // =====================================================================
-function shake(el) {
-  el.classList.remove('shake');
-  void el.offsetWidth; // перезапуск анимации
-  el.classList.add('shake');
-}
-
-let toastTimer;
-function toast(text) {
-  const t = $('toast');
-  t.textContent = text;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
-}
-
 function switchView(name) {
+  state.view = name;
   for (const v of document.querySelectorAll('.view')) {
     v.classList.toggle('active', v.id === 'view-' + name);
   }
   for (const t of document.querySelectorAll('.tab')) {
     t.classList.toggle('active', t.dataset.view === name);
   }
-  // Кнопка «+» пока нужна только на вкладке трат
-  $('fab').classList.toggle('hidden', name !== 'expenses');
+  // Кнопка «+» есть на вкладках трат и долгов
+  $('fab').classList.toggle('hidden', !['expenses', 'debts'].includes(name));
+  if (name === 'debts') renderDebts();
   window.scrollTo(0, 0);
 }
 
@@ -269,7 +256,14 @@ function switchView(name) {
 // ОБРАБОТЧИКИ НАЖАТИЙ
 // =====================================================================
 function bindEvents() {
-  $('fab').addEventListener('click', () => openSheet());
+  // «+» добавляет то, что относится к открытой вкладке
+  $('fab').addEventListener('click', () => {
+    if (state.view === 'debts') openDebtSheet();
+    else openTxSheet();
+  });
+  for (const b of document.querySelectorAll('.settings-btn')) {
+    b.addEventListener('click', openSettings);
+  }
   $('prev-month').addEventListener('click', () => shiftMonth(-1));
   $('next-month').addEventListener('click', () => shiftMonth(1));
 
@@ -277,11 +271,14 @@ function bindEvents() {
     const btn = e.target.closest('.tx');
     if (!btn) return;
     const tx = await db.get('transactions', btn.dataset.id);
-    if (tx) openSheet(tx);
+    if (tx) openTxSheet(tx);
   });
 
   $('tx-cancel').addEventListener('click', closeSheet);
   $('backdrop').addEventListener('click', closeSheet);
+  for (const b of document.querySelectorAll('[data-close]')) {
+    b.addEventListener('click', closeSheets);
+  }
   $('tx-sheet').addEventListener('submit', saveForm);
   $('tx-delete').addEventListener('click', deleteCurrent);
 
