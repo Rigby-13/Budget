@@ -355,3 +355,4 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
   background: var(--card); border: 2px solid transparent;
 }
 .emoji-btn.active { border-color: var(--accent); }
+.center { text-align: center; }
