@@ -59,6 +59,8 @@
     <button type="button" class="card balance-card" id="balance-card"></button>
 
     <div id="month-report"></div>
+    <!-- Регулярные платежи, которые ждут подтверждения суммы -->
+    <div id="rec-pending"></div>
     <!-- Главное: сколько можно потратить сегодня -->
     <div id="today-hero"></div>
 
@@ -219,6 +221,13 @@
         <span>📖 Как пользоваться</span><span class="muted">›</span>
       </button>
 
+      <div class="section-title">Регулярные платежи</div>
+      <div class="card rec-card" id="rec-card">
+        <div id="rec-list"></div>
+        <div id="rec-suggest"></div>
+        <button type="button" class="secondary-btn full" id="rec-new">＋ Новый регулярный платёж</button>
+      </div>
+
       <div class="section-title">Импорт выписки из банка</div>
       <div class="card imp-card" id="imp-card">
         <p class="small" style="margin-top:0">Выгрузите выписку за месяц в приложении банка и загрузите файл сюда —
@@ -286,7 +295,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 7.1</p>
+      <p class="small muted center">Версия 7.2</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -397,6 +406,7 @@
         </div>
       </div>
 
+      <button type="button" class="plain-btn" id="tx-make-rec" hidden>🔁 Сделать регулярной</button>
       <button type="button" class="danger-btn" id="tx-delete" hidden>Удалить запись</button>
     </div>
   </form>
@@ -588,6 +598,64 @@
       <div class="emoji-grid" id="cat-emoji-grid"></div>
     </div>
   </div>
+
+  <!-- ============ ПАНЕЛЬ: РЕГУЛЯРНЫЙ ПЛАТЁЖ ============ -->
+  <form id="rec-sheet" class="sheet" autocomplete="off" novalidate>
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <b id="rec-title">Регулярный платёж</b>
+      <button type="submit" class="link-btn bold">Готово</button>
+    </div>
+    <div class="sheet-body">
+      <div class="segmented wide" id="rec-type">
+        <button type="button" data-type="expense" class="active">Расход</button>
+        <button type="button" data-type="income">Доход</button>
+      </div>
+      <label class="amount-wrap">
+        <input id="rec-amount" class="amount-input" type="text" inputmode="decimal" placeholder="0" aria-label="Сумма">
+        <span class="currency">₽</span>
+      </label>
+      <label class="field">
+        <span>Название</span>
+        <input id="rec-name" type="text" placeholder="Например, МТС или Кинопоиск" maxlength="40">
+      </label>
+      <label class="field">
+        <span>Категория</span>
+        <select id="rec-cat" class="rec-select"></select>
+      </label>
+      <div class="theme-label">Как часто</div>
+      <div class="segmented wide" id="rec-kind">
+        <button type="button" data-kind="month" class="active">Месяц</button>
+        <button type="button" data-kind="week">Неделя</button>
+        <button type="button" data-kind="days">N дней</button>
+        <button type="button" data-kind="year">Год</button>
+      </div>
+      <div id="rec-month-fields">
+        <label class="field"><span>Число месяца</span><input id="rec-day" type="number" inputmode="numeric" min="1" max="31"></label>
+      </div>
+      <div id="rec-week-fields" hidden>
+        <div class="segmented wide" id="rec-weekday">
+          <button type="button" data-wd="0">Пн</button><button type="button" data-wd="1">Вт</button>
+          <button type="button" data-wd="2">Ср</button><button type="button" data-wd="3">Чт</button>
+          <button type="button" data-wd="4">Пт</button><button type="button" data-wd="5">Сб</button>
+          <button type="button" data-wd="6">Вс</button>
+        </div>
+      </div>
+      <div id="rec-days-fields" hidden>
+        <label class="field"><span>Каждые N дней</span><input id="rec-every" type="number" inputmode="numeric" min="1"></label>
+      </div>
+      <div class="field-row">
+        <label class="field"><span>Начало</span><input id="rec-start" type="date"></label>
+        <label class="field"><span>Окончание</span><input id="rec-end" type="date"></label>
+      </div>
+      <label class="switch-row">
+        <span>Спрашивать сумму перед добавлением<br><small class="muted">для связи, ЖКХ — если сумма меняется</small></span>
+        <input type="checkbox" id="rec-ask" class="switch">
+      </label>
+      <div class="card limit-info" id="rec-info"></div>
+      <button type="button" class="danger-btn" id="rec-delete" hidden>Удалить регулярный платёж</button>
+    </div>
+  </form>
 
   <!-- Меню действий снизу экрана -->
   <div id="action-sheet" class="sheet action-sheet"></div>

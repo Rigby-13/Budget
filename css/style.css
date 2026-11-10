@@ -1057,3 +1057,30 @@ html, body { touch-action: manipulation; }
 }
 .imp-footer .primary-btn { margin-top: 0; }
 .imp-footer .primary-btn:disabled { background: var(--chip); color: var(--muted); }
+
+/* =====================================================================
+   7.2: регулярные платежи
+   ===================================================================== */
+.rec-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 0; }
+.rec-row + .rec-row { border-top: 0.5px solid var(--line); }
+.rec-row:active { opacity: 0.6; }
+.rec-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rec-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-main small { font-size: 13px; }
+.rec-sug { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 0.5px solid var(--line); }
+.rec-sug .primary-btn { min-height: 36px; padding: 6px 12px; font-size: 14px; }
+.rec-select {
+  font: inherit; font-size: 17px; color: var(--text); background: var(--card);
+  border: 0; border-radius: 10px; padding: 12px; min-height: 46px; width: 100%;
+  -webkit-appearance: none; appearance: none;
+}
+#rec-kind, #rec-weekday, #rec-type { margin-bottom: 12px; }
+#rec-weekday button { padding: 7px 2px; font-size: 13px; }
+.rec-mark { font-size: 12px; }
+.rec-pending { margin-bottom: 12px; border: 1.5px solid var(--accent); }
+.rec-pend-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 0.5px solid var(--line); }
+.rec-pend-row:first-of-type { border-top: 0; }
+.rec-pend-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rec-pend-row .primary-btn { min-height: 36px; padding: 6px 12px; font-size: 14px; }
+.soon-row { cursor: default; }
+#tx-make-rec { margin-top: 12px; }
