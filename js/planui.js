@@ -1,0 +1,345 @@
+// =====================================================================
+// planui.js — интерфейс плана и лимитов:
+//   • вкладка «Лимит» в окне «+»
+//   • карточка «План на месяц» на вкладке «Траты»
+//   • итоги прошлого месяца и напоминания
+// =====================================================================
+
+import * as db from './db.js';
+import {
+  formatMoney, parseMoney, moneyToInput, escapeHTML, todayISO, MONTHS, MONTHS_GEN, now,
+} from './utils.js';
+import { $, shake, toast } from './ui.js';
+import {
+  PERIODS, getPlan, getPlanForEdit, savePlan, setLimit, removeLimit, dailyRate,
+  monthAllocation, planSummary, todayState, monthResult, currentMonthKey,
+  monthBounds, prevMonthKey,
+} from './plan.js';
+
+const BUDGET = '__budget__'; // особый «чип» — бюджет месяца
+
+const form = {
+  plan: null,          // редактируемый план текущего месяца
+  categories: [],
+  selected: BUDGET,    // выбранный чип: BUDGET или id категории
+  period: 'day',
+};
+
+function monthNameGen(key) {
+  return MONTHS_GEN[Number(key.slice(5, 7)) - 1];
+}
+function monthName(key) {
+  return MONTHS[Number(key.slice(5, 7)) - 1].toLowerCase();
+}
+
+// =====================================================================
+// ВКЛАДКА «ЛИМИТ» В ОКНЕ «+»
+// =====================================================================
+/** Показать форму лимита. categoryId — сразу выбрать категорию. */
+export async function showLimitForm(categoryId = null) {
+  form.plan = await getPlanForEdit();
+  form.categories = (await db.getAll('categories'))
+    .filter((c) => c.type === 'expense' && !c.archived)
+    .sort((a, b) => a.order - b.order);
+  // Если бюджет ещё не задан — начинаем с него
+  form.selected = categoryId || (form.plan.income > 0 ? (form.categories[0]?.id ?? BUDGET) : BUDGET);
+  selectChip(form.selected);
+}
+
+function limitOf(categoryId) {
+  return form.plan.limits.find((l) => l.categoryId === categoryId);
+}
+
+function shortLimit(l) {
+  return `${formatMoney(l.amount)} ${PERIODS[l.period].short}`;
+}
+
+function selectChip(id) {
+  form.selected = id;
+  if (id === BUDGET) {
+    $('tx-amount').value = form.plan.income ? moneyToInput(form.plan.income) : '';
+    $('budget-savings').value = form.plan.savings ? moneyToInput(form.plan.savings) : '';
+  } else {
+    const l = limitOf(id);
+    form.period = l ? l.period : 'day';
+    $('tx-amount').value = l ? moneyToInput(l.amount) : '';
+  }
+  renderLimitForm();
+}
+
+function renderLimitForm() {
+  const isBudget = form.selected === BUDGET;
+  $('amount-caption').textContent = isBudget
+    ? `Бюджет на ${monthName(form.plan.month)}`
+    : 'Сумма лимита';
+
+  // Чипы: бюджет + категории расходов (с подписью текущего лимита)
+  const budgetSub = form.plan.income ? formatMoney(form.plan.income) : 'не задан';
+  $('limit-categories').innerHTML = `
+    <button type="button" class="cat-chip ${isBudget ? 'active' : ''}" data-id="${BUDGET}">
+      <span class="e">💰</span><span class="n">Бюджет</span><span class="sub">${budgetSub}</span>
+    </button>` + form.categories.map((c) => {
+    const l = limitOf(c.id);
+    return `<button type="button" class="cat-chip ${c.id === form.selected ? 'active' : ''}" data-id="${c.id}">
+      <span class="e">${c.emoji}</span><span class="n">${escapeHTML(c.name)}</span>
+      <span class="sub">${l ? shortLimit(l) : '—'}</span>
+    </button>`;
+  }).join('');
+
+  $('limit-period').hidden = isBudget;
+  $('budget-fields').hidden = !isBudget;
+  for (const b of $('limit-period').querySelectorAll('button')) {
+    b.classList.toggle('active', b.dataset.period === form.period);
+  }
+  $('limit-delete').hidden = isBudget || !limitOf(form.selected);
+  renderLimitInfo();
+}
+
+/** Подсказка с пересчётом: сколько это в день / неделю / месяц и что останется. */
+function renderLimitInfo() {
+  const amount = parseMoney($('tx-amount').value) || 0;
+  const plan = structuredClone(form.plan);
+  const key = plan.month;
+  let lines = [];
+
+  if (form.selected === BUDGET) {
+    plan.income = amount;
+    plan.savings = parseMoney($('budget-savings').value) || 0;
+  } else if (amount > 0) {
+    setLimit(plan, form.selected, form.period, amount);
+    const l = plan.limits.find((x) => x.categoryId === form.selected);
+    const rate = dailyRate(l);
+    if (form.period === 'day') lines.push(`= ${formatMoney(Math.round(rate * 7))} в неделю`);
+    if (form.period === 'week') lines.push(`= <b>${formatMoney(Math.round(rate))} в день</b>`);
+    if (form.period === 'month') {
+      const { to, from } = monthBounds(key);
+      const days = Number(to.slice(8)) - Number(from.slice(8)) + 1;
+      lines.push(`≈ ${formatMoney(Math.round(amount / days / 100) * 100)} в день (без переноса по дням)`);
+    } else {
+      lines.push(`≈ ${formatMoney(monthAllocation(l, key))} за ${monthName(key)}`);
+      lines.push('Экономия переходит на следующий день, перерасход — вычитается.');
+    }
+  }
+
+  if (plan.income > 0) {
+    const s = planSummary(plan, form.categories);
+    lines.push(`<span class="plan-line">На траты: ${formatMoney(s.available)} · по лимитам: ${formatMoney(s.allocated)}</span>`);
+    lines.push(s.free >= 0
+      ? `<span class="plan-line">Свободно: <b class="income">${formatMoney(s.free)}</b></span>`
+      : `<span class="plan-line negative">Не хватает ${formatMoney(-s.free)} — лимиты больше бюджета</span>`);
+  } else if (form.selected !== BUDGET) {
+    lines.push('<span class="muted">Задайте 💰 Бюджет, чтобы видеть, сколько остаётся свободным.</span>');
+  }
+  $('limit-info').innerHTML = lines.map((l) => `<div>${l}</div>`).join('');
+}
+
+/** Кнопка «Готово» в режиме лимита. true — сохранено. */
+export async function saveLimitForm() {
+  const amount = parseMoney($('tx-amount').value);
+  if (form.selected === BUDGET) {
+    if (!(amount > 0)) { shake($('tx-amount')); return false; }
+    const savingsText = $('budget-savings').value.trim();
+    const savings = savingsText ? parseMoney(savingsText) : 0;
+    if (!(savings >= 0) || savings > amount) { shake($('budget-savings')); toast('Копилка больше бюджета'); return false; }
+    form.plan.income = amount;
+    form.plan.savings = savings;
+    await savePlan(form.plan);
+    toast(`План на ${monthName(form.plan.month)}: на траты ${formatMoney(amount - savings)}`);
+    return true;
+  }
+  if (!(amount > 0)) { shake($('tx-amount')); return false; }
+  setLimit(form.plan, form.selected, form.period, amount);
+  await savePlan(form.plan);
+  const cat = form.categories.find((c) => c.id === form.selected);
+  toast(`Лимит «${cat.name}»: ${formatMoney(amount)} ${PERIODS[form.period].short}`);
+  return true;
+}
+
+async function deleteLimit() {
+  const cat = form.categories.find((c) => c.id === form.selected);
+  if (!confirm(`Убрать лимит для «${cat.name}»?`)) return;
+  removeLimit(form.plan, form.selected);
+  await savePlan(form.plan);
+  toast('Лимит убран');
+  document.dispatchEvent(new Event('plan-changed'));
+  selectChip(form.selected);
+}
+
+export function initLimitForm() {
+  $('limit-categories').addEventListener('click', (e) => {
+    const b = e.target.closest('.cat-chip');
+    if (b) selectChip(b.dataset.id);
+  });
+  $('limit-period').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    form.period = b.dataset.period;
+    renderLimitForm();
+  });
+  $('tx-amount').addEventListener('input', () => { if (form.plan && !$('limit-fields').hidden) renderLimitInfo(); });
+  $('budget-savings').addEventListener('input', renderLimitInfo);
+  $('limit-delete').addEventListener('click', deleteLimit);
+}
+
+// =====================================================================
+// КАРТОЧКА «ПЛАН НА МЕСЯЦ» НА ВКЛАДКЕ «ТРАТЫ»
+// =====================================================================
+/**
+ * Рисует карточку плана (только для текущего месяца) и итоги прошлого.
+ * monthItems — траты отображаемого месяца.
+ */
+export async function renderPlanCard(viewKey, monthItems) {
+  const key = currentMonthKey();
+  const card = $('plan-card');
+  if (viewKey !== key) { card.innerHTML = ''; $('month-report').innerHTML = ''; return; }
+
+  await renderMonthReport(key);
+
+  const categories = await db.getAll('categories');
+  const plan = await getPlan(key);
+  if (!plan || (!plan.income && !plan.limits.length)) {
+    card.innerHTML = `<section class="card plan-card empty-plan">
+      <div><b>Составьте план на месяц</b>
+      <p class="small muted">Бюджет, копилка и лимиты по категориям — приложение посчитает, сколько можно тратить каждый день.</p></div>
+      <button type="button" class="primary-btn full" data-plan-edit="${BUDGET}">Настроить план</button>
+    </section>`;
+    return;
+  }
+
+  const st = todayState(plan, categories, monthItems);
+  const sum = planSummary(plan, categories);
+
+  const head = plan.income > 0
+    ? `<div class="plan-formula">${formatMoney(plan.income)}${plan.savings ? ` − ${formatMoney(plan.savings)} в копилку` : ''}${sum.allocated ? ` − ${formatMoney(sum.allocated)} лимиты` : ''} = <b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)} свободно</b></div>`
+    : '';
+
+  const daily = st.rows.filter((r) => r.kind === 'daily');
+  const monthly = st.rows.filter((r) => r.kind === 'month');
+
+  const dailyRows = daily.map((r) => {
+    const status = r.remaining < 0 ? 'over' : r.todayLimit > 0 && r.spent / r.todayLimit >= 0.8 ? 'warn' : 'ok';
+    const pct = r.todayLimit > 0 ? Math.min(100, Math.round((r.spent / r.todayLimit) * 100)) : 100;
+    const carry = r.carry === 0 ? ''
+      : r.carry > 0 ? `<span class="income">+${formatMoney(r.carry)} экономия</span>`
+        : `<span class="negative">−${formatMoney(-r.carry)} перерасход</span>`;
+    return `<button type="button" class="plan-row" data-plan-edit="${r.category.id}">
+      <div class="plan-row-head">
+        <span class="today-name">${r.category.emoji} ${escapeHTML(r.category.name)}</span>
+        <span class="today-val ${status}">${r.remaining < 0
+          ? `превышен на ${formatMoney(-r.remaining)}`
+          : `осталось ${formatMoney(r.remaining)}`}</span>
+      </div>
+      <div class="progress limit-bar ${status}"><i style="width:${pct}%"></i></div>
+      <div class="plan-row-sub">
+        <span>на сегодня ${formatMoney(Math.max(0, r.todayLimit))}${carry ? ` = ${formatMoney(r.base)} ${carry}` : ''}</span>
+        ${r.remaining < 0 ? '<span class="negative">вычтется завтра</span>' : ''}
+      </div>
+    </button>`;
+  }).join('');
+
+  const monthRow = (name, emoji, spent, total, remaining, editId) => {
+    const pct = total > 0 ? Math.min(100, Math.round((spent / total) * 100)) : 100;
+    const status = remaining < 0 ? 'over' : pct >= 80 ? 'warn' : 'ok';
+    return `<button type="button" class="plan-row" ${editId ? `data-plan-edit="${editId}"` : ''}>
+      <div class="plan-row-head">
+        <span class="today-name">${emoji} ${escapeHTML(name)}</span>
+        <span class="today-val ${status}">${remaining < 0 ? `превышен на ${formatMoney(-remaining)}` : `осталось ${formatMoney(remaining)}`}</span>
+      </div>
+      <div class="progress limit-bar ${status}"><i style="width:${pct}%"></i></div>
+      <div class="plan-row-sub"><span>${formatMoney(spent)} из ${formatMoney(total)} за месяц</span></div>
+    </button>`;
+  };
+  const monthlyRows = monthly.map((r) => monthRow(r.category.name, r.category.emoji, r.spent, r.total, r.remaining, r.category.id)).join('')
+    + (st.other ? monthRow('Остальные траты', '🧺', st.other.spent, st.other.total, st.other.remaining, BUDGET) : '');
+
+  card.innerHTML = `<section class="card plan-card">
+    <div class="card-head">
+      <h3>План на ${monthName(key)}</h3>
+      <button type="button" class="link-btn small-link" data-plan-edit="${BUDGET}">Изменить</button>
+    </div>
+    ${head}
+    ${daily.length ? `<div class="section-title">Сегодня</div>${dailyRows}` : ''}
+    ${monthlyRows ? `<div class="section-title">На месяц</div>${monthlyRows}` : ''}
+  </section>`;
+
+  remindOncePerDay(daily);
+}
+
+/** Раз в день — напоминание, сколько можно потратить сегодня с учётом переноса. */
+function remindOncePerDay(daily) {
+  if (!daily.length) return;
+  let shown = null;
+  try { shown = localStorage.getItem('planReminder'); } catch { /* ничего */ }
+  if (shown === todayISO()) return;
+  try { localStorage.setItem('planReminder', todayISO()); } catch { /* ничего */ }
+  const r = daily[0];
+  let msg = `Сегодня на «${r.category.name}» — ${formatMoney(Math.max(0, r.todayLimit))}`;
+  if (r.carry > 0) msg += ` (+${formatMoney(r.carry)} экономии) 👏`;
+  if (r.carry < 0) msg += ` (−${formatMoney(-r.carry)} за перерасход)`;
+  setTimeout(() => toast(msg, 4500), 600);
+}
+
+/** Итоги прошлого месяца — показываем в начале нового, пока не закроют. */
+async function renderMonthReport(key) {
+  const box = $('month-report');
+  const prev = prevMonthKey(key);
+  let dismissed = null;
+  try { dismissed = localStorage.getItem('monthReportClosed'); } catch { /* ничего */ }
+  const plan = await getPlan(prev);
+  if (!plan || dismissed === prev) { box.innerHTML = ''; return; }
+
+  const { from, to } = monthBounds(prev);
+  const categories = await db.getAll('categories');
+  const res = monthResult(plan, categories, await db.getTransactionsBetween(from, to), to);
+  if (!res.rows.length && !res.other) { box.innerHTML = ''; return; }
+
+  box.innerHTML = `<section class="card month-report">
+    <div class="card-head">
+      <h3>Итоги ${monthNameGen(prev)} 🏁</h3>
+      <button type="button" class="pay-del" id="month-report-close" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="daily-totals">
+      <div><span class="muted">Сэкономлено</span><b class="income">+${formatMoney(res.saved)}</b></div>
+      <div><span class="muted">Превышение</span><b class="negative">−${formatMoney(res.over)}</b></div>
+      <div><span class="muted">В копилку</span><b>${formatMoney(plan.savings)}</b></div>
+    </div>
+    <p class="small muted" style="margin:0">Подробности — в «Статистике» за ${monthName(prev)}. Новый месяц начат с чистого листа.</p>
+  </section>`;
+  $('month-report-close').addEventListener('click', () => {
+    try { localStorage.setItem('monthReportClosed', prev); } catch { /* ничего */ }
+    box.innerHTML = '';
+  });
+}
+
+// =====================================================================
+// СООБЩЕНИЕ ПОСЛЕ ДОБАВЛЕНИЯ ТРАТЫ
+// =====================================================================
+/** true — показали сообщение про лимит. */
+export async function planToastAfterSave(tx) {
+  if (tx.type !== 'expense' || tx.date.slice(0, 7) !== currentMonthKey()) return false;
+  const plan = await getPlan(currentMonthKey());
+  if (!plan) return false;
+  const categories = await db.getAll('categories');
+  const { from, to } = monthBounds(plan.month);
+  const st = todayState(plan, categories, await db.getTransactionsBetween(from, to));
+  const row = st.rows.find((r) => r.category.id === tx.categoryId);
+
+  if (row && row.kind === 'daily' && tx.date === todayISO()) {
+    if (row.remaining < 0) toast(`⛔ «${row.category.name}»: превышен на ${formatMoney(-row.remaining)} — вычтется из завтрашнего лимита`, 4500);
+    else toast(`«${row.category.name}»: на сегодня осталось ${formatMoney(row.remaining)}`, 3000);
+    return true;
+  }
+  if (row && row.kind === 'month') {
+    if (row.remaining < 0) toast(`⛔ «${row.category.name}»: месячный лимит превышен на ${formatMoney(-row.remaining)}`, 4500);
+    else toast(`«${row.category.name}»: на месяц осталось ${formatMoney(row.remaining)}`, 3000);
+    return true;
+  }
+  if (!row && st.other) {
+    if (st.other.remaining < 0) toast(`⛔ Свободные деньги закончились: −${formatMoney(-st.other.remaining)}`, 4500);
+    else toast(`Свободных денег на месяц: ${formatMoney(st.other.remaining)}`, 3000);
+    return true;
+  }
+  return false;
+}
+
+export { BUDGET };

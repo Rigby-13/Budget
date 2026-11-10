@@ -473,3 +473,47 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 .daily-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 15px; }
 .daily-name small { font-size: 12px; }
 .daily-sums { display: flex; flex-direction: column; align-items: flex-end; font-weight: 600; font-size: 15px; white-space: nowrap; }
+
+/* =====================================================================
+   Этап 6: план на месяц, вкладка «Лимит», тестовый режим
+   ===================================================================== */
+.amount-caption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 4px; }
+.cat-chip .sub { font-size: 10px; color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#limit-period { margin-bottom: 14px; }
+.limit-info { font-size: 14px; line-height: 1.5; margin-bottom: 12px; }
+.limit-info:empty { display: none; }
+.limit-info .plan-line { display: block; }
+.sheet-header .segmented button { padding: 6px 9px; }
+
+.small-link { font-size: 15px; min-width: 0; padding: 4px 0; }
+.plan-card, .month-report { margin: -8px 0 16px; }
+.plan-card .section-title { margin: 14px 0 4px; }
+.plan-card.empty-plan p { margin: 6px 0 0; }
+.plan-formula { font-size: 14px; color: var(--muted); line-height: 1.45; }
+.plan-formula b { color: var(--text); }
+.plan-row { display: block; width: 100%; text-align: left; padding: 8px 0; border-radius: 8px; }
+.plan-row:active { opacity: 0.6; }
+.plan-row + .plan-row { border-top: 0.5px solid var(--line); }
+.plan-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 15px; }
+.plan-row .limit-bar { margin: 6px 0 4px; }
+.plan-row-sub { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.month-report .card-head { margin-bottom: 8px; }
+
+.plan-table { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 14px; }
+.plan-table div { display: flex; flex-direction: column; color: var(--muted); }
+.plan-table b { color: var(--text); font-size: 17px; }
+
+/* Полоска тестового режима */
+#test-bar {
+  position: fixed; z-index: 25; left: 0; right: 0; top: 0;
+  padding: calc(var(--safe-top) + 6px) 12px 6px;
+  display: flex; align-items: center; gap: 6px;
+  background: #ffcc00; color: #1c1c1e; font-size: 14px; font-weight: 600;
+}
+#test-bar .test-date { flex: 1; white-space: nowrap; }
+#test-bar button {
+  background: rgba(0, 0, 0, 0.12); border-radius: 8px; padding: 6px 8px;
+  font-size: 13px; font-weight: 600; color: #1c1c1e; white-space: nowrap;
+}
+#test-bar button:active { background: rgba(0, 0, 0, 0.25); }
+body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }

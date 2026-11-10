@@ -53,8 +53,46 @@ export function fromISODate(s) {
   return new Date(y, m - 1, d, 12);
 }
 
+// ---------------------------------------------------------------------
+// «Сегодня». В тестовом режиме дату можно перематывать («машина времени»),
+// поэтому везде, где нужна текущая дата, используем now(), а не new Date().
+// ---------------------------------------------------------------------
+function readLS(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+/** Включён ли тестовый режим. */
+export function isTestMode() {
+  return readLS('testMode') === '1';
+}
+
+/** Текущая дата (в тестовом режиме — выбранная в «машине времени»). */
+export function now() {
+  const fake = isTestMode() && readLS('fakeToday');
+  if (fake) {
+    const real = new Date();
+    const [y, m, d] = fake.split('-').map(Number);
+    return new Date(y, m - 1, d, real.getHours(), real.getMinutes(), real.getSeconds());
+  }
+  return new Date();
+}
+
 export function todayISO() {
-  return toISODate(new Date());
+  return toISODate(now());
+}
+
+/** Вчерашняя дата 'ГГГГ-ММ-ДД'. */
+export function yesterdayISO() {
+  const y = now();
+  y.setDate(y.getDate() - 1);
+  return toISODate(y);
+}
+
+/** 'ГГГГ-ММ-ДД' ± n дней. */
+export function addDays(iso, n) {
+  const d = fromISODate(iso);
+  d.setDate(d.getDate() + n);
+  return toISODate(d);
 }
 
 /** Первый и последний день месяца в виде строк. */
@@ -67,12 +105,10 @@ export function monthRange(year, month) {
 /** Заголовок дня в списке: "Сегодня", "Вчера" или "8 ноября, вс". */
 export function dayLabel(iso) {
   const today = todayISO();
-  const y = new Date();
-  y.setDate(y.getDate() - 1);
   if (iso === today) return 'Сегодня';
-  if (iso === toISODate(y)) return 'Вчера';
+  if (iso === yesterdayISO()) return 'Вчера';
   const d = fromISODate(iso);
-  const yearPart = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : '';
+  const yearPart = d.getFullYear() !== now().getFullYear() ? ` ${d.getFullYear()}` : '';
   return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}${yearPart}, ${WEEKDAYS[d.getDay()]}`;
 }
 
@@ -86,7 +122,7 @@ export function escapeHTML(s) {
 /** 'ГГГГ-ММ-ДД' → "15 ноября" (или "15 ноября 2025", если год другой). */
 export function shortDate(iso) {
   const d = fromISODate(iso);
-  const yearPart = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : '';
+  const yearPart = d.getFullYear() !== now().getFullYear() ? ` ${d.getFullYear()}` : '';
   return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}${yearPart}`;
 }
 
