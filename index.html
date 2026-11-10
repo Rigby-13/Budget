@@ -286,7 +286,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 7.0</p>
+      <p class="small muted center">Версия 7.1</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -549,7 +549,7 @@
     <div class="sheet-header">
       <button type="button" class="link-btn" data-close>Отмена</button>
       <b>Импорт выписки</b>
-      <button type="button" class="link-btn bold" id="imp-go">Импорт</button>
+      <button type="button" class="link-btn bold" id="imp-go">Добавить</button>
     </div>
     <div class="sheet-body">
       <p class="small muted center" id="imp-file" style="margin-top:0"></p>
@@ -561,10 +561,15 @@
         <div class="imp-cols" id="imp-cols"></div>
       </details>
       <div class="imp-bar">
-        <span class="small muted">Проверьте категории — приложение запомнит ваш выбор</span>
+        <span class="small muted">Снимите галочку или нажмите ✕, чтобы не добавлять операцию</span>
         <button type="button" class="link-btn small-link" id="imp-all">Все / ничего</button>
       </div>
+      <div class="small muted imp-removed" id="imp-removed" hidden></div>
       <div class="imp-list" id="imp-list"></div>
+      <!-- Большая кнопка внизу — добавить выбранные операции -->
+      <div class="imp-footer">
+        <button type="button" class="primary-btn full" id="imp-go2">Добавить</button>
+      </div>
     </div>
   </div>
 
