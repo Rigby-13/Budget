@@ -7,8 +7,7 @@
 // =====================================================================
 
 import * as db from './db.js';
-import { escapeHTML, formatMoney, parseMoney, moneyToInput } from './utils.js';
-import { currentDailyLimit, withDailyLimit } from './limits.js';
+import { escapeHTML } from './utils.js';
 import { $, focusField, openSheet, closeSheet, shake, toast } from './ui.js';
 
 // Готовые эмодзи для быстрого выбора
@@ -58,7 +57,7 @@ async function renderList() {
     <div class="cat-row" data-id="${c.id}">
       <button type="button" class="cat-row-main" data-action="edit">
         <span class="tx-emoji">${c.emoji}</span>
-        <span class="cat-row-name">${escapeHTML(c.name)}${limitText(c)}</span>
+        <span class="cat-row-name">${escapeHTML(c.name)}</span>
       </button>
       ${isHidden ? '' : `
         <button type="button" class="move-btn" data-action="up" ${i === 0 ? 'disabled' : ''} aria-label="Выше">↑</button>
@@ -74,15 +73,6 @@ async function renderList() {
       <div class="day-list">${hidden.map((c, i, a) => row(c, i, a, true)).join('')}</div>`;
   }
   $('cats-list').innerHTML = html;
-}
-
-/** Подпись под названием: "300 ₽ в день · 10 000 ₽ в месяц" */
-function limitText(c) {
-  const parts = [];
-  const daily = currentDailyLimit(c);
-  if (daily > 0) parts.push(`${formatMoney(daily)} в день`);
-  if (c.limit > 0) parts.push(`${formatMoney(c.limit)} в месяц`);
-  return parts.length ? `<small>лимит ${parts.join(' · ')}</small>` : '';
 }
 
 /** Поменять категорию местами с соседней (вверх или вниз). */
@@ -107,11 +97,6 @@ async function openEdit(cat = null) {
   state.editing = cat;
   $('cat-edit-title').textContent = cat ? 'Категория' : 'Новая категория';
   $('cat-name').value = cat ? cat.name : '';
-  // Лимит бывает только у категорий расходов
-  $('cat-limit-field').hidden = state.type !== 'expense';
-  $('cat-limit').value = cat && cat.limit > 0 ? moneyToInput(cat.limit) : '';
-  const daily = cat ? currentDailyLimit(cat) : 0;
-  $('cat-daily-limit').value = daily > 0 ? moneyToInput(daily) : '';
   setEmoji(cat ? cat.emoji : EMOJIS[0]);
   $('cat-emoji-grid').innerHTML = EMOJIS.map((e) =>
     `<button type="button" class="emoji-btn" data-emoji="${e}">${e}</button>`).join('');
@@ -173,24 +158,10 @@ async function saveCategory(e) {
   if (duplicate) { shake($('cat-name')); toast('Такая категория уже есть'); return; }
 
   // Лимит: пустое поле — без лимита
-  const readLimit = (input) => {
-    const text = input.value.trim();
-    if (state.type !== 'expense' || !text) return 0;
-    const v = parseMoney(text);
-    if (!(v > 0)) { shake(input); toast('Неверная сумма лимита'); return null; }
-    return v;
-  };
-  const limit = readLimit($('cat-limit'));
-  if (limit === null) return;
-  const dailyLimit = readLimit($('cat-daily-limit'));
-  if (dailyLimit === null) return;
-
   const maxOrder = Math.max(-1, ...all.filter((c) => c.type === state.type).map((c) => c.order));
   const cat = state.editing
-    ? { ...state.editing, name, emoji: currentEmoji, limit }
-    : { id: db.newId(), type: state.type, name, emoji: currentEmoji, order: maxOrder + 1, archived: false, limit };
-  // Дневной лимит хранится историей: новое значение действует с сегодняшнего дня
-  cat.dailyLimits = withDailyLimit(cat, dailyLimit);
+    ? { ...state.editing, name, emoji: currentEmoji }
+    : { id: db.newId(), type: state.type, name, emoji: currentEmoji, order: maxOrder + 1, archived: false };
   await db.put('categories', cat);
 
   closeSheet($('cat-edit-sheet'));

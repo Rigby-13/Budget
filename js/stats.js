@@ -5,12 +5,13 @@
 
 import * as db from './db.js';
 import {
-  formatMoney, formatMoneyShort, toISODate, fromISODate, todayISO, monthRange,
-  startOfWeek, rangeLabel, daysBetween, MONTHS, MONTHS_SHORT, escapeHTML, plural,
+  formatMoney, formatMoneyShort, toISODate, fromISODate, todayISO, yesterdayISO, monthRange,
+  startOfWeek, rangeLabel, daysBetween, MONTHS, MONTHS_SHORT, escapeHTML, now,
 } from './utils.js';
 import { $ } from './ui.js';
-import { limitStatuses, dailyResults, todayStatuses } from './limits.js';
-import { openCategories } from './categories.js';
+import {
+  getPlan, planSummary, monthResult, monthKeyOf, monthBounds, currentMonthKey, PERIODS,
+} from './plan.js';
 
 // Цвета категорий: 8 проверенных на различимость (в том числе при
 // дальтонизме) оттенков. Цвет закреплён за категорией по её месту
@@ -20,11 +21,11 @@ function colorVar(index) {
   return index < SLOTS ? `var(--c${index + 1})` : 'var(--c-other)';
 }
 
-const now = new Date();
+const today = now();
 const state = {
   mode: 'month',            // 'week' | 'month' | 'year' | 'custom'
-  anchor: now,              // любая дата внутри выбранного периода
-  customFrom: monthRange(now.getFullYear(), now.getMonth()).from,
+  anchor: today,            // любая дата внутри выбранного периода
+  customFrom: monthRange(today.getFullYear(), today.getMonth()).from,
   customTo: todayISO(),
   breakdown: 'expense',     // чью разбивку показываем: расходы или доходы
   selectedMonth: null,      // выбранный столбик в динамике ('ГГГГ-ММ')
@@ -87,8 +88,7 @@ export async function renderStats() {
   renderSummary(items, range);
   renderBreakdown(items, categories);
   await renderMonthly(range);
-  await renderDaily(categories, range);
-  await renderLimits(categories);
+  await renderPlan(categories, range);
 }
 
 function renderSummary(items, { from, to }) {
@@ -222,74 +222,74 @@ async function renderMonthly(range) {
     <div class="caption-row"><span class="muted">Баланс</span><b class="${bal < 0 ? 'negative' : ''}">${bal > 0 ? '+' : ''}${formatMoney(bal)}</b></div>`;
 }
 
-async function renderLimits(categories) {
-  // Лимиты считаем за месяц: выбранный (в режиме «Месяц») или текущий
-  const base = state.mode === 'month' ? state.anchor : new Date();
-  const { from, to } = monthRange(base.getFullYear(), base.getMonth());
+/**
+ * План месяца: бюджет, копилка, лимиты и итоги — сэкономлено / превышение.
+ * Месяц — выбранный (в режиме «Месяц») или месяц конца периода.
+ */
+async function renderPlan(categories, range) {
+  const key = state.mode === 'month' ? monthKeyOf(state.anchor) : monthKeyOf(range.to);
+  const mName = MONTHS[Number(key.slice(5, 7)) - 1].toLowerCase();
+  $('st-plan-title').textContent = `План · ${mName}`;
+  const plan = await getPlan(key);
+  const box = $('st-plan');
+
+  if (!plan || (!plan.income && !plan.limits.length)) {
+    box.innerHTML = `<p class="small muted" style="margin:0 0 10px">
+      Плана на этот месяц нет. Нажмите «+» → «Лимит», чтобы задать бюджет, копилку и лимиты.</p>`;
+    return;
+  }
+
+  const { from, to } = monthBounds(key);
+  const cur = currentMonthKey();
+  const future = key > cur;
+  // Прошлый месяц — итоги целиком; текущий — по вчерашний день
+  const upto = key < cur ? to : yesterdayISO();
   const items = await db.getTransactionsBetween(from, to);
-  const list = limitStatuses(categories, items);
-  $('st-limits-title').textContent = `Лимиты на месяц · ${MONTHS[base.getMonth()].toLowerCase()}`;
+  const sum = planSummary(plan, categories);
+  const res = future || upto < from ? null : monthResult(plan, categories, items, upto);
 
-  if (!list.length) {
-    $('st-limits').innerHTML = `<p class="small muted" style="margin:0 0 10px">
-      Задайте лимит на месяц для категории — приложение предупредит, когда траты подойдут к 80%.</p>`;
-    return;
-  }
-  $('st-limits').innerHTML = list.map((l) => {
-    const label = l.status === 'over'
-      ? `<span class="status over">⛔ превышен на ${formatMoney(l.spent - l.limit)}</span>`
-      : l.status === 'warn'
-        ? `<span class="status warn">⚠️ ${l.pct}% — осталось ${formatMoney(l.limit - l.spent)}</span>`
-        : `<span class="status ok">осталось ${formatMoney(l.limit - l.spent)}</span>`;
-    return `<div class="limit-row">
-      <div class="limit-head">
-        <span>${l.category.emoji} ${escapeHTML(l.category.name)}</span>
-        <span class="small">${formatMoney(l.spent)} <span class="muted">из ${formatMoney(l.limit)}</span></span>
-      </div>
-      <div class="progress big limit-bar ${l.status}"><i style="width:${Math.min(100, l.pct)}%"></i></div>
-      ${label}
+  let html = '';
+  if (plan.income > 0) {
+    html += `<div class="plan-table">
+      <div><span>Бюджет</span><b>${formatMoney(plan.income)}</b></div>
+      <div><span>В копилку</span><b>${formatMoney(plan.savings)}</b></div>
+      <div><span>По лимитам</span><b>${formatMoney(sum.allocated)}</b></div>
+      <div><span>Свободно</span><b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)}</b></div>
     </div>`;
-  }).join('');
-}
-
-/** Дневные лимиты: сколько сэкономлено и сколько превышено за период. */
-async function renderDaily(categories, range) {
-  const items = await db.getTransactionsBetween(range.from, range.to);
-  const res = dailyResults(categories, items, range.from, range.to);
-  const anyLimit = categories.some((c) => (c.dailyLimits || []).some((e) => e.amount > 0));
-
-  if (!anyLimit) {
-    $('st-daily').innerHTML = `<p class="small muted" style="margin:0 0 10px">
-      Задайте лимит в день (например, 300 ₽ на еду) — приложение будет считать,
-      сколько вы сэкономили и на сколько превысили лимит.</p>`;
-    return;
   }
-  if (!res.rows.length) {
-    $('st-daily').innerHTML = `<p class="small muted" style="margin:0 0 10px">
-      За этот период завершённых дней с лимитом пока нет. Сегодняшний день попадёт в итоги завтра.</p>`;
+
+  if (!res) {
+    html += '<p class="small muted">Месяц ещё не начался — итоги появятся позже.</p>';
+    box.innerHTML = html;
     return;
   }
 
   const net = res.saved - res.over;
-  $('st-daily').innerHTML = `
+  html += `<div class="section-title">${res.finished ? 'Итоги месяца' : 'Пока что — по вчерашний день'}</div>
     <div class="daily-totals">
       <div><span class="muted">Сэкономлено</span><b class="income">+${formatMoney(res.saved)}</b></div>
       <div><span class="muted">Превышение</span><b class="negative">−${formatMoney(res.over)}</b></div>
       <div><span class="muted">Итого</span><b class="${net < 0 ? 'negative' : 'income'}">${net >= 0 ? '+' : '−'}${formatMoney(Math.abs(net))}</b></div>
-    </div>
-    ${res.rows.map((r) => `
-      <div class="daily-row">
-        <div class="daily-name">
-          <span>${r.category.emoji} ${escapeHTML(r.category.name)}</span>
-          <small class="muted">в лимите ${r.daysOk} ${plural(r.daysOk, 'день', 'дня', 'дней')}${r.daysOver ? ` · превышен ${r.daysOver} ${plural(r.daysOver, 'день', 'дня', 'дней')}` : ''}</small>
-        </div>
-        <div class="daily-sums">
-          ${r.saved ? `<span class="income">+${formatMoney(r.saved)}</span>` : ''}
-          ${r.over ? `<span class="negative">−${formatMoney(r.over)}</span>` : ''}
-          ${!r.saved && !r.over ? '<span class="muted">ровно в лимит</span>' : ''}
-        </div>
-      </div>`).join('')}
-    <p class="small muted" style="margin:8px 0 0">Сегодняшний день попадёт в итоги завтра.</p>`;
+    </div>`;
+
+  const row = (emoji, name, sub, r) => `
+    <div class="daily-row">
+      <div class="daily-name">
+        <span>${emoji} ${escapeHTML(name)}</span>
+        <small class="muted">${sub} · потрачено ${formatMoney(r.spent)} из ${formatMoney(r.allocated)}</small>
+      </div>
+      <div class="daily-sums">${r.diff > 0 ? `<span class="income">+${formatMoney(r.diff)}</span>`
+        : r.diff < 0 ? `<span class="negative">−${formatMoney(-r.diff)}</span>` : '<span class="muted">0 ₽</span>'}</div>
+    </div>`;
+  html += res.rows.map((r) => row(r.category.emoji, r.category.name,
+    `${formatMoney(r.limit.amount)} ${PERIODS[r.limit.period].short}`, r)).join('');
+  if (res.other) html += row('🧺', 'Остальные траты', 'свободные деньги', res.other);
+  if (!res.finished) {
+    html += '<p class="small muted" style="margin:8px 0 0">Месячные лимиты и «остальные траты» подводятся в конце месяца. Сегодняшний день войдёт в итоги завтра.</p>';
+  } else if (plan.income > 0) {
+    html += `<p class="small" style="margin:10px 0 0">Всего потрачено ${formatMoney(res.totalSpent)} из ${formatMoney(sum.available)} · в копилку ${formatMoney(plan.savings)}${net > 0 ? ` + сэкономлено ${formatMoney(net)}` : ''}</p>`;
+  }
+  box.innerHTML = html;
 }
 
 // =====================================================================
@@ -300,7 +300,7 @@ export function initStats() {
     const b = e.target.closest('button');
     if (!b) return;
     state.mode = b.dataset.mode;
-    state.anchor = new Date();
+    state.anchor = now();
     state.selectedMonth = null;
     renderStats();
   });
@@ -324,5 +324,5 @@ export function initStats() {
     renderMonthly(currentRange());
   });
 
-  $('st-limits-edit').addEventListener('click', () => openCategories('expense'));
+
 }

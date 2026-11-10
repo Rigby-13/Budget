@@ -8,7 +8,7 @@
 // а старые и новые файлы никогда не смешиваются.
 // =====================================================================
 
-const VERSION = '5.1';
+const VERSION = '6';
 const CACHE = 'budget-v' + VERSION;
 const NETWORK_TIMEOUT = 3000; // мс: дольше ждать сеть нет смысла
 const FILES = [
@@ -23,7 +23,9 @@ const FILES = [
   './js/backup.js',
   './js/categories.js',
   './js/stats.js',
-  './js/limits.js',
+  './js/plan.js',
+  './js/planui.js',
+  './js/testmode.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',

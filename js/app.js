@@ -4,7 +4,7 @@
 
 import * as db from './db.js';
 import {
-  formatMoney, parseMoney, moneyToInput, MONTHS, todayISO, toISODate,
+  formatMoney, parseMoney, moneyToInput, MONTHS, todayISO, now,
   monthRange, dayLabel, escapeHTML,
 } from './utils.js';
 import { $, focusField, openSheet, closeSheet, closeSheets, closeTopSheet, isOpen, shake, toast } from './ui.js';
@@ -12,7 +12,9 @@ import { initCategories, openCategories } from './categories.js';
 import { initDebts, renderDebts, openDebtSheet } from './debts.js';
 import { initBackup, openSettings } from './backup.js';
 import { initStats, renderStats } from './stats.js';
-import { limitStatuses, checkLimitAfterSave, todayStatuses, dailyResults } from './limits.js';
+import { migrateOldLimits } from './plan.js';
+import { initLimitForm, showLimitForm, saveLimitForm, renderPlanCard, planToastAfterSave, BUDGET } from './planui.js';
+import { initTestMode } from './testmode.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
 const DEFAULT_CATEGORIES = [
@@ -26,13 +28,13 @@ const DEFAULT_CATEGORIES = [
 ];
 
 // ---------- Состояние приложения ----------
-const now = new Date();
+const today = now();
 const state = {
-  year: now.getFullYear(),
-  month: now.getMonth(),     // 0 = январь
+  year: today.getFullYear(),
+  month: today.getMonth(),   // 0 = январь
   categories: [],            // все категории
   editing: null,             // запись, которую редактируем (или null для новой)
-  formType: 'expense',       // 'expense' или 'income' в форме
+  formType: 'expense',       // 'expense', 'income' или 'limit' в форме
   formCategoryId: null,      // выбранная категория в форме
   view: 'expenses',          // текущая вкладка
 };
@@ -43,6 +45,7 @@ const state = {
 async function init() {
   await db.openDB();
   await seedCategories();
+  await migrateOldLimits();
   state.categories = await db.getAll('categories');
 
   // Просим браузер не удалять наши данные при нехватке места
@@ -53,6 +56,8 @@ async function init() {
   initBackup();
   initCategories();
   initStats();
+  initLimitForm();
+  initTestMode();
   await renderExpenses();
 }
 
@@ -94,17 +99,8 @@ async function renderExpenses() {
   $('sum-income').textContent = formatMoney(income);
   $('sum-balance').textContent = (balance > 0 ? '+' : '') + formatMoney(balance);
 
-  await renderDailyCard(items);
-
-  // Предупреждения о лимитах (80% и больше)
-  const alerts = limitStatuses(state.categories, items).filter((l) => l.status !== 'ok');
-  $('limit-alerts').innerHTML = alerts.map((l) => `
-    <div class="limit-alert ${l.status}">
-      ${l.status === 'over' ? '⛔' : '⚠️'} ${l.category.emoji} ${escapeHTML(l.category.name)}:
-      ${l.status === 'over'
-        ? `лимит превышен на ${formatMoney(l.spent - l.limit)}`
-        : `${l.pct}% лимита, осталось ${formatMoney(l.limit - l.spent)}`}
-    </div>`).join('');
+  // План на месяц: лимиты на сегодня, перенос, итоги прошлого месяца
+  await renderPlanCard(`${state.year}-${String(state.month + 1).padStart(2, '0')}`, items);
 
   // Сортировка: новые сверху
   items.sort((a, b) => (b.date.localeCompare(a.date)) || (b.createdAt - a.createdAt));
@@ -145,63 +141,6 @@ async function renderExpenses() {
   list.innerHTML = html;
 }
 
-// =====================================================================
-// КАРТОЧКА «ЛИМИТЫ НА СЕГОДНЯ» — остаток на день и итоги вчера / за месяц
-// =====================================================================
-async function renderDailyCard(monthItems) {
-  const card = $('daily-card');
-  const now = new Date();
-  const isCurrentMonth = state.year === now.getFullYear() && state.month === now.getMonth();
-  const today = todayStatuses(state.categories, monthItems);
-  if (!isCurrentMonth || !today.length) { card.innerHTML = ''; return; }
-
-  // Вчера (может быть в прошлом месяце — поэтому берём траты отдельно)
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  const yISO = toISODate(y);
-  const yItems = await db.getTransactionsBetween(yISO, yISO);
-  const yRes = dailyResults(state.categories, yItems, yISO, yISO);
-
-  // С начала месяца
-  const { from } = monthRange(state.year, state.month);
-  const mRes = dailyResults(state.categories, monthItems, from, todayISO());
-
-  const rows = today.map((d) => `
-    <div class="today-row">
-      <span class="today-name">${d.category.emoji} ${escapeHTML(d.category.name)}</span>
-      <span class="today-val ${d.status}">${d.status === 'over'
-        ? `превышен на ${formatMoney(d.spent - d.limit)}`
-        : `осталось ${formatMoney(d.limit - d.spent)}`}<small> из ${formatMoney(d.limit)}</small></span>
-    </div>
-    <div class="progress limit-bar ${d.status}"><i style="width:${Math.min(100, d.pct)}%"></i></div>`).join('');
-
-  const fmtRes = (r) => {
-    const parts = [];
-    if (r.saved) parts.push(`<span class="income">+${formatMoney(r.saved)}</span> сэкономлено`);
-    if (r.over) parts.push(`<span class="negative">−${formatMoney(r.over)}</span> превышение`);
-    return parts.join(' · ') || 'ровно в лимит';
-  };
-
-  card.innerHTML = `<section class="card daily-card">
-    <div class="card-head"><h3>Лимиты на сегодня</h3></div>
-    ${rows}
-    <div class="daily-foot">
-      ${yRes.rows.length ? `<div>Вчера: ${fmtRes(yRes)}</div>` : ''}
-      ${mRes.rows.length ? `<div>С начала месяца: ${fmtRes(mRes)}</div>` : ''}
-    </div>
-  </section>`;
-
-  // Напоминание один раз в день — итог вчерашнего дня
-  let shown = null;
-  try { shown = localStorage.getItem('dailyReport'); } catch { /* ничего */ }
-  if (yRes.rows.length && shown !== todayISO()) {
-    try { localStorage.setItem('dailyReport', todayISO()); } catch { /* ничего */ }
-    const msg = yRes.over > yRes.saved
-      ? `Вчера лимит превышен на ${formatMoney(yRes.over - yRes.saved)} 😬`
-      : `Вчера вы сэкономили ${formatMoney(yRes.saved - yRes.over)} 👏`;
-    setTimeout(() => toast(msg, 4000), 600);
-  }
-}
-
 function shiftMonth(delta) {
   const d = new Date(state.year, state.month + delta, 1);
   state.year = d.getFullYear();
@@ -212,9 +151,13 @@ function shiftMonth(delta) {
 // =====================================================================
 // ФОРМА ДОБАВЛЕНИЯ / РЕДАКТИРОВАНИЯ
 // =====================================================================
-function openTxSheet(tx = null) {
+/**
+ * Открыть окно «+». tx — запись для редактирования.
+ * limitFor — сразу открыть вкладку «Лимит» (id категории или BUDGET).
+ */
+function openTxSheet(tx = null, limitFor = null) {
   state.editing = tx;
-  state.formType = tx ? tx.type : 'expense';
+  state.formType = limitFor ? 'limit' : tx ? tx.type : 'expense';
   state.formCategoryId = tx ? tx.categoryId : lastCategory(state.formType);
 
   $('tx-amount').value = tx ? moneyToInput(tx.amount) : '';
@@ -223,7 +166,8 @@ function openTxSheet(tx = null) {
   $('tx-delete').hidden = !tx;
 
   renderTypeToggle();
-  renderCategoryChips();
+  if (limitFor) showLimitForm(limitFor === BUDGET ? BUDGET : limitFor);
+  else renderCategoryChips();
 
   openSheet($('tx-sheet'));
 
@@ -241,6 +185,14 @@ function renderTypeToggle() {
   for (const b of $('tx-type').querySelectorAll('button')) {
     b.classList.toggle('active', b.dataset.type === state.formType);
   }
+  // Вкладку «Лимит» нельзя выбрать при редактировании записи
+  $('tx-type').querySelector('[data-type=limit]').hidden = !!state.editing;
+  const isLimit = state.formType === 'limit';
+  $('tx-categories').hidden = isLimit;
+  $('tx-fields').hidden = isLimit;
+  $('limit-fields').hidden = !isLimit;
+  $('amount-caption').hidden = !isLimit;
+  $('tx-delete').hidden = isLimit || !state.editing;
 }
 
 function renderCategoryChips() {
@@ -272,6 +224,13 @@ function rememberCategory(type, id) {
 
 async function saveForm(e) {
   e.preventDefault();
+  if (state.formType === 'limit') {
+    if (await saveLimitForm()) {
+      closeTxSheet();
+      document.dispatchEvent(new Event('plan-changed'));
+    }
+    return;
+  }
   const amount = parseMoney($('tx-amount').value);
   if (!amount || amount <= 0) {
     shake($('tx-amount'));
@@ -300,8 +259,8 @@ async function saveForm(e) {
   const [y, m] = date.split('-').map(Number);
   state.year = y; state.month = m - 1;
   await renderExpenses();
-  // Если подбираемся к лимиту — покажем предупреждение вместо «Добавлено»
-  if (!(await checkLimitAfterSave(tx))) toast(wasEditing ? 'Сохранено' : 'Добавлено');
+  // Если у категории есть лимит — покажем остаток вместо «Добавлено»
+  if (!(await planToastAfterSave(tx))) toast(wasEditing ? 'Сохранено' : 'Добавлено');
 }
 
 async function deleteCurrent() {
@@ -372,11 +331,26 @@ function bindEvents() {
 
   $('tx-type').addEventListener('click', (e) => {
     const b = e.target.closest('button');
-    if (!b) return;
+    if (!b || b.dataset.type === state.formType) return;
+    const wasLimit = state.formType === 'limit';
     state.formType = b.dataset.type;
-    state.formCategoryId = lastCategory(state.formType);
     renderTypeToggle();
+    if (state.formType === 'limit') { showLimitForm(); return; }
+    if (wasLimit) $('tx-amount').value = '';
+    state.formCategoryId = lastCategory(state.formType);
     renderCategoryChips();
+  });
+
+  // Нажатие на строку плана / кнопку «Изменить» — открыть вкладку «Лимит»
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-plan-edit]');
+    if (b) openTxSheet(null, b.dataset.planEdit);
+  });
+
+  // План изменился — перерисовываем
+  document.addEventListener('plan-changed', async () => {
+    await renderExpenses();
+    if (state.view === 'stats') await renderStats();
   });
 
   $('tx-categories').addEventListener('click', (e) => {

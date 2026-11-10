@@ -4,7 +4,10 @@
 // прямо на телефоне и никуда не отправляются.
 // =====================================================================
 
-const DB_NAME = 'budget-db';
+import { isTestMode } from './utils.js';
+
+// В тестовом режиме — отдельная база, настоящие данные не трогаются
+const DB_NAME = isTestMode() ? 'budget-db-test' : 'budget-db';
 const DB_VERSION = 1;
 
 // Все "таблицы" (в IndexedDB они называются object stores).

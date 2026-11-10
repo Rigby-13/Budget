@@ -45,8 +45,8 @@
       </div>
     </section>
 
-    <div id="daily-card"></div>
-    <div id="limit-alerts"></div>
+    <div id="month-report"></div>
+    <div id="plan-card"></div>
     <div id="tx-list"></div>
   </main>
 
@@ -106,17 +106,13 @@
       <div class="monthly-caption" id="st-monthly-caption"></div>
     </section>
 
-    <!-- Дневные лимиты: сэкономлено / превышение -->
+    <!-- План месяца: бюджет, лимиты, сэкономлено / превышение -->
     <section class="card chart-card">
-      <div class="card-head"><h3>Лимиты в день</h3></div>
-      <div id="st-daily"></div>
-    </section>
-
-    <!-- Лимиты на месяц -->
-    <section class="card chart-card">
-      <div class="card-head"><h3 id="st-limits-title">Лимиты</h3></div>
-      <div id="st-limits"></div>
-      <button type="button" class="secondary-btn full" id="st-limits-edit">Настроить лимиты</button>
+      <div class="card-head">
+        <h3 id="st-plan-title">План</h3>
+        <button type="button" class="link-btn small-link" data-plan-edit="__budget__">Изменить</button>
+      </div>
+      <div id="st-plan"></div>
     </section>
   </main>
   <!-- ===================== ВКЛАДКА «ДОЛГИ» ===================== -->
@@ -173,11 +169,13 @@
       <div class="segmented" id="tx-type">
         <button type="button" data-type="expense" class="active">Расход</button>
         <button type="button" data-type="income">Доход</button>
+        <button type="button" data-type="limit">Лимит</button>
       </div>
       <button type="submit" class="link-btn bold">Готово</button>
     </div>
 
     <div class="sheet-body">
+      <div class="amount-caption" id="amount-caption" hidden>Сумма лимита</div>
       <label class="amount-wrap">
         <input id="tx-amount" type="text" inputmode="decimal" placeholder="0" aria-label="Сумма">
         <span class="currency">₽</span>
@@ -185,16 +183,36 @@
 
       <div class="cat-grid" id="tx-categories"></div>
 
-      <div class="field-row">
+      <!-- Вкладка «Лимит»: бюджет месяца или лимит категории -->
+      <div id="limit-fields" hidden>
+        <div class="segmented wide" id="limit-period">
+          <button type="button" data-period="day" class="active">В день</button>
+          <button type="button" data-period="week">В неделю</button>
+          <button type="button" data-period="month">В месяц</button>
+        </div>
+        <div id="budget-fields" hidden>
+          <label class="field">
+            <span>Отложить в копилку, ₽</span>
+            <input id="budget-savings" type="text" inputmode="decimal" placeholder="0">
+          </label>
+        </div>
+        <div class="card limit-info" id="limit-info"></div>
+        <div class="cat-grid" id="limit-categories"></div>
+        <button type="button" class="danger-btn" id="limit-delete" hidden>Убрать лимит</button>
+      </div>
+
+      <div id="tx-fields">
+        <div class="field-row">
+          <label class="field">
+            <span>Дата</span>
+            <input id="tx-date" type="date">
+          </label>
+        </div>
         <label class="field">
-          <span>Дата</span>
-          <input id="tx-date" type="date">
+          <span>Комментарий</span>
+          <input id="tx-comment" type="text" placeholder="необязательно" enterkeyhint="done">
         </label>
       </div>
-      <label class="field">
-        <span>Комментарий</span>
-        <input id="tx-comment" type="text" placeholder="необязательно" enterkeyhint="done">
-      </label>
 
       <button type="button" class="danger-btn" id="tx-delete" hidden>Удалить запись</button>
     </div>
@@ -293,7 +311,11 @@
           <input id="backup-file" type="file" accept="application/json,.json">
         </label>
       </div>
-      <p class="small muted center">Версия 5.1</p>
+
+      <div class="section-title">Тестовый режим</div>
+      <div class="card" id="test-controls"></div>
+
+      <p class="small muted center">Версия 6</p>
     </div>
   </div>
 
@@ -326,16 +348,6 @@
         <span>Название</span>
         <input id="cat-name" type="text" placeholder="Например, Кафе" maxlength="30" enterkeyhint="done">
       </label>
-      <div class="field-row" id="cat-limit-field">
-        <label class="field">
-          <span>Лимит в день, ₽</span>
-          <input id="cat-daily-limit" type="text" inputmode="decimal" placeholder="Нет">
-        </label>
-        <label class="field">
-          <span>Лимит в месяц, ₽</span>
-          <input id="cat-limit" type="text" inputmode="decimal" placeholder="Нет">
-        </label>
-      </div>
       <label class="field">
         <span>Свой эмодзи (впишите с клавиатуры) или выберите ниже</span>
         <input id="cat-emoji-input" type="text" placeholder="😀">
