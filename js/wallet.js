@@ -54,7 +54,7 @@ export async function renderBalance() {
     ${savings ? `<span class="balance-sub">🐷 в копилке ${formatMoney(savings)}</span>` : ''}`;
 }
 
-async function openWalletSheet() {
+export async function openWalletSheet() {
   const { balance } = await getBalances();
   $('wallet-amount').value = balance !== null ? moneyToInput(balance) : '';
   openSheet($('wallet-sheet'));
