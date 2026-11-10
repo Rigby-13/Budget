@@ -63,7 +63,38 @@
   <!-- ===== Остальные вкладки — появятся на следующих этапах ===== -->
   <!-- ===================== ВКЛАДКА «СТАТИСТИКА» ===================== -->
   <main id="view-stats" class="view">
-    <header class="topbar"><h1>Статистика</h1></header>
+    <header class="topbar">
+      <div class="segmented big-seg" id="stats-section">
+        <button type="button" data-section="stats" class="active">Статистика</button>
+        <button type="button" data-section="savings">Накопления</button>
+      </div>
+    </header>
+
+    <!-- ========== Раздел «Накопления» ========== -->
+    <div id="savings-main" hidden>
+      <section class="card hero sav-hero">
+        <span class="hero-label">В копилке</span>
+        <span class="hero-amount" id="sav-balance">0 ₽</span>
+        <div class="pay-buttons" style="margin-top:12px">
+          <button type="button" class="primary-btn" id="sav-add">＋ Отложить</button>
+          <button type="button" class="secondary-btn" id="sav-take">− Взять</button>
+        </div>
+      </section>
+      <div id="sav-pending"></div>
+      <section class="card chart-card">
+        <div class="card-head"><h3 id="sav-month-title">Этот месяц</h3></div>
+        <div id="sav-month"></div>
+      </section>
+      <section class="card chart-card">
+        <div class="card-head"><h3>По месяцам</h3></div>
+        <div id="sav-alltime"></div>
+      </section>
+      <div class="section-title">История копилки</div>
+      <div class="day-list" id="sav-history"></div>
+    </div>
+
+    <!-- ========== Раздел «Статистика» ========== -->
+    <div id="stats-main">
 
     <div class="segmented wide" id="stats-mode">
       <button type="button" data-mode="week">Неделя</button>
@@ -124,6 +155,7 @@
       </div>
       <div id="st-plan"></div>
     </section>
+    </div>
   </main>
   <!-- ===================== ВКЛАДКА «ДОЛГИ» ===================== -->
   <main id="view-debts" class="view">
@@ -177,7 +209,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.2</p>
+      <p class="small muted center">Версия 6.3</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -369,6 +401,28 @@
       <p class="small muted" id="cat-usage"></p>
       <button type="button" class="plain-btn" id="cat-restore" hidden>Вернуть в список</button>
       <button type="button" class="danger-btn" id="cat-delete" hidden>Удалить категорию</button>
+    </div>
+  </form>
+
+  <!-- ============ ПАНЕЛЬ: ОТЛОЖИТЬ / ВЗЯТЬ ИЗ КОПИЛКИ ============ -->
+  <form id="sav-sheet" class="sheet" autocomplete="off" novalidate>
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <div class="segmented" id="sav-kind">
+        <button type="button" data-kind="deposit" class="active">Отложить</button>
+        <button type="button" data-kind="withdraw">Взять</button>
+      </div>
+      <button type="submit" class="link-btn bold">Готово</button>
+    </div>
+    <div class="sheet-body">
+      <label class="amount-wrap">
+        <input id="sav-amount" class="amount-input" type="text" inputmode="decimal" placeholder="0" aria-label="Сумма">
+        <span class="currency">₽</span>
+      </label>
+      <label class="field">
+        <span>Комментарий</span>
+        <input id="sav-comment" type="text" placeholder="например, на отпуск" enterkeyhint="done">
+      </label>
     </div>
   </form>
 

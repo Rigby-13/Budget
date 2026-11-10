@@ -9,6 +9,7 @@ import {
   startOfWeek, rangeLabel, daysBetween, MONTHS, MONTHS_SHORT, escapeHTML, now,
 } from './utils.js';
 import { $ } from './ui.js';
+import { renderSavings } from './savings.js';
 import {
   getPlan, planSummary, monthResult, monthKeyOf, monthBounds, currentMonthKey, PERIODS,
 } from './plan.js';
@@ -27,6 +28,7 @@ const state = {
   anchor: today,            // любая дата внутри выбранного периода
   customFrom: monthRange(today.getFullYear(), today.getMonth()).from,
   customTo: todayISO(),
+  section: 'stats',         // 'stats' или 'savings' — переключатель наверху
   breakdown: 'expense',     // чью разбивку показываем: расходы или доходы
   selectedMonth: null,      // выбранный столбик в динамике ('ГГГГ-ММ')
 };
@@ -68,6 +70,13 @@ function shift(delta) {
 // ОТРИСОВКА
 // =====================================================================
 export async function renderStats() {
+  for (const b of $('stats-section').querySelectorAll('button')) {
+    b.classList.toggle('active', b.dataset.section === state.section);
+  }
+  $('stats-main').hidden = state.section !== 'stats';
+  $('savings-main').hidden = state.section !== 'savings';
+  if (state.section === 'savings') { await renderSavings(); return; }
+
   for (const b of $('stats-mode').querySelectorAll('button')) {
     b.classList.toggle('active', b.dataset.mode === state.mode);
   }
@@ -297,6 +306,13 @@ async function renderPlan(categories, range) {
 // ОБРАБОТЧИКИ НАЖАТИЙ
 // =====================================================================
 export function initStats() {
+  $('stats-section').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    state.section = b.dataset.section;
+    window.scrollTo(0, 0);
+    renderStats();
+  });
   $('stats-mode').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;

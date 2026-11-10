@@ -596,3 +596,16 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 .as-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
 .as-item.as-cancel { margin-top: 8px; border-radius: 14px; border-top: 0; font-weight: 600; }
 .as-item:active { opacity: 0.6; }
+
+/* =====================================================================
+   6.3: накопления
+   ===================================================================== */
+.big-seg { flex: 1; }
+.big-seg button { flex: 1; padding: 8px 10px; font-size: 15px; }
+.sav-close .sav-alt { display: flex; justify-content: space-between; margin-top: 4px; }
+.sav-close .link-btn { font-size: 15px; min-width: 0; }
+.sav-done { margin-top: 10px; font-size: 15px; color: var(--income); font-weight: 500; }
+.sav-pending { margin-bottom: 16px; }
+.sav-pending > b { display: block; margin-bottom: 4px; }
+#sav-history { margin-bottom: 16px; }
+.sav-hero { display: flex; flex-direction: column; }

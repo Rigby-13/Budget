@@ -8,7 +8,7 @@ import { isTestMode } from './utils.js';
 
 // В тестовом режиме — отдельная база, настоящие данные не трогаются
 const DB_NAME = isTestMode() ? 'budget-db-test' : 'budget-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // 2 — добавлена таблица savings (копилка)
 
 // Все "таблицы" (в IndexedDB они называются object stores).
 // Создаём сразу все, которые понадобятся на следующих этапах,
@@ -19,7 +19,8 @@ const STORES = [
   'debts',          // долги (этап 3)
   'wishlist',       // вещи в корзине (этап 4)
   'wishCategories', // категории корзины (этап 4)
-  'settings',       // настройки (лимиты и прочее)
+  'settings',       // настройки, планы
+  'savings',        // копилка: пополнения и снятия
 ];
 
 let dbPromise = null;
