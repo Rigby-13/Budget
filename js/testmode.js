@@ -34,11 +34,17 @@ function renderBar() {
   document.body.classList.add('test-mode');
   document.body.insertAdjacentHTML('afterbegin', `
     <div id="test-bar">
-      <span class="test-date">🧪 ${shortDate(todayISO())}</span>
+      <label class="test-date">🧪 ${shortDate(todayISO())} ▾
+        <input type="date" id="test-date-pick" value="${todayISO()}" aria-label="Перейти к дате">
+      </label>
       <button type="button" data-travel="-1" aria-label="Предыдущий день">◀ день</button>
       <button type="button" data-travel="1" aria-label="Следующий день">день ▶</button>
       <button type="button" data-travel="month" aria-label="К первому числу следующего месяца">1-е ⏭</button>
     </div>`);
+  // Тап по дате — перейти на любую дату
+  $('test-date-pick').addEventListener('change', (e) => {
+    if (e.target.value) travelTo(e.target.value);
+  });
   $('test-bar').addEventListener('click', (e) => {
     const b = e.target.closest('[data-travel]');
     if (!b) return;

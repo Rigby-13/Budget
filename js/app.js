@@ -5,7 +5,7 @@
 import * as db from './db.js';
 import {
   formatMoney, parseMoney, moneyToInput, MONTHS, todayISO, now,
-  monthRange, dayLabel, escapeHTML,
+  monthRange, dayLabel, escapeHTML, addDays,
 } from './utils.js';
 import { $, focusField, openSheet, closeSheet, closeSheets, closeTopSheet, isOpen, shake, toast } from './ui.js';
 import { initCategories, openCategories } from './categories.js';
@@ -19,6 +19,7 @@ import {
 } from './planui.js';
 import { initTestMode } from './testmode.js';
 import { initSavings } from './savings.js';
+import { initWallet, renderBalance } from './wallet.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
 const DEFAULT_CATEGORIES = [
@@ -66,6 +67,7 @@ async function init() {
   initLimitForm();
   initTemplatesSettings();
   initSavings();
+  initWallet();
   initTestMode();
   await renderExpenses();
 }
@@ -96,6 +98,10 @@ function categoryById(id) {
 // =====================================================================
 async function renderExpenses() {
   $('month-title').textContent = `${MONTHS[state.month]} ${state.year}`;
+  $('month-pick').value = viewKey();
+  const n = now();
+  $('to-today').hidden = state.year === n.getFullYear() && state.month === n.getMonth();
+  await renderBalance();
 
   const { from, to } = monthRange(state.year, state.month);
   const items = await db.getTransactionsBetween(from, to);
@@ -198,7 +204,8 @@ function openTxSheet(tx = null, limitFor = null, categoryId = null, limitMonth =
   $('tx-comment').value = tx ? tx.comment || '' : '';
   $('tx-delete').hidden = !tx;
   // Дату и комментарий показываем сразу, только если они уже заполнены
-  setExtraOpen(!!tx && (tx.date !== todayISO() || !!tx.comment));
+  setExtraOpen(!!tx && !!tx.comment);
+  renderDateChips();
 
   renderTypeToggle();
   if (limitFor) showLimitForm(limitFor === BUDGET ? BUDGET : limitFor, limitMonth || viewKey());
@@ -248,6 +255,19 @@ function renderCategoryChips() {
     <button type="button" class="cat-chip cat-edit" data-edit="1">
       <span class="e">✏️</span><span class="n">Изменить</span>
     </button>`;
+}
+
+/** Подсветить «Сегодня» / «Вчера» / выбранную дату. */
+function renderDateChips() {
+  const d = $('tx-date').value || todayISO();
+  const today = todayISO();
+  const yesterday = addDays(today, -1);
+  for (const b of $('tx-date-chips').querySelectorAll('[data-day]')) {
+    b.classList.toggle('active', addDays(today, Number(b.dataset.day)) === d);
+  }
+  const other = d !== today && d !== yesterday;
+  $('tx-date-other').classList.toggle('active', other);
+  $('tx-date-label').textContent = other ? `📅 ${dayLabel(d)}` : '📅 Другая';
 }
 
 function setExtraOpen(open) {
@@ -408,6 +428,29 @@ function bindEvents() {
   });
 
   $('tx-more').addEventListener('click', () => setExtraOpen(true));
+  $('tx-date-chips').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-day]');
+    if (!b) return;
+    $('tx-date').value = addDays(todayISO(), Number(b.dataset.day));
+    renderDateChips();
+  });
+  $('tx-date').addEventListener('change', renderDateChips);
+
+  // Выбор месяца по тапу на название и кнопка «Сегодня»
+  $('month-pick').addEventListener('change', (e) => {
+    if (!e.target.value) return;
+    const [y, m] = e.target.value.split('-').map(Number);
+    state.year = y; state.month = m - 1;
+    renderExpenses();
+  });
+  $('to-today').addEventListener('click', () => {
+    const n = now();
+    state.year = n.getFullYear(); state.month = n.getMonth();
+    renderExpenses();
+  });
+
+  // Деньги изменились — обновляем баланс
+  document.addEventListener('wallet-changed', renderBalance);
 
   // Копилка изменилась — обновляем итоги месяца и раздел «Накопления»
   document.addEventListener('savings-changed', async () => {
