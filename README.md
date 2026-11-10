@@ -23,7 +23,9 @@ js/savings.js         — накопления: копилка, итоги ме�
 js/wallet.js          — «Мои деньги»: текущий остаток
 js/guide.js           — гайд при первом открытии
 js/importparse.js     — чтение выписки: CSV и Excel (.xlsx)
-js/importer.js        — импорт выписки: колонки, категории, повторы
+js/importer.js        — импорт выписки: колонки, категории, повторы, «Не распознано»
+js/importpdf.js       — чтение PDF-выписок (Сбербанк и общий формат)
+vendor/pdfjs/         — библиотека pdf.js (Mozilla) для чтения PDF
 sw.js                 — service worker (офлайн-режим)
 manifest.webmanifest  — описание приложения для экрана «Домой»
 icons/                — иконки
