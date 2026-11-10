@@ -35,9 +35,12 @@ function monthName(key) {
 // =====================================================================
 // ВКЛАДКА «ЛИМИТ» В ОКНЕ «+»
 // =====================================================================
-/** Показать форму лимита. categoryId — сразу выбрать категорию. */
-export async function showLimitForm(categoryId = null) {
-  form.plan = await getPlanForEdit();
+/**
+ * Показать форму лимита.
+ * categoryId — сразу выбрать категорию; monthKey — план какого месяца менять.
+ */
+export async function showLimitForm(categoryId = null, monthKey = currentMonthKey()) {
+  form.plan = await getPlanForEdit(monthKey);
   form.categories = (await db.getAll('categories'))
     .filter((c) => c.type === 'expense' && !c.archived)
     .sort((a, b) => a.order - b.order);
@@ -195,7 +198,8 @@ export async function renderPlanCard(viewKey, monthItems) {
   const card = $('plan-card');
   const hero = $('today-hero');
   if (viewKey !== key) {
-    card.innerHTML = ''; hero.innerHTML = ''; $('month-report').innerHTML = '';
+    hero.innerHTML = ''; $('month-report').innerHTML = '';
+    await renderPlanOverview(viewKey);
     return [];
   }
 
@@ -292,6 +296,50 @@ export async function renderPlanCard(viewKey, monthItems) {
 
   remindOncePerDay(daily);
   return daily.map((r) => r.category.id);
+}
+
+/**
+ * План другого (не текущего) месяца: бюджет, лимиты и кнопка «Изменить».
+ * Так можно заранее составить план на следующий месяц или поправить прошлый.
+ */
+async function renderPlanOverview(key) {
+  const card = $('plan-card');
+  const categories = await db.getAll('categories');
+  const plan = await getPlan(key);
+  const edit = `data-plan-edit="${BUDGET}" data-plan-month="${key}"`;
+  const mName = monthName(key);
+
+  if (!plan || (!plan.income && !plan.limits.length)) {
+    card.innerHTML = `<section class="card plan-card empty-plan">
+      <div><b>Плана на ${mName} нет</b>
+      <p class="small muted">Можно составить заранее: бюджет, копилка и лимиты.</p></div>
+      <button type="button" class="primary-btn full" ${edit}>Составить план на ${mName}</button>
+    </section>`;
+    return;
+  }
+
+  const sum = planSummary(plan, categories);
+  const rows = plan.limits.map((l) => {
+    const c = categories.find((x) => x.id === l.categoryId);
+    if (!c || c.archived) return '';
+    return `<button type="button" class="plan-row" data-plan-edit="${c.id}" data-plan-month="${key}">
+      <div class="plan-row-head">
+        <span class="today-name">${c.emoji} ${escapeHTML(c.name)}</span>
+        <span class="today-val">${formatMoney(l.amount)} ${PERIODS[l.period].short}</span>
+      </div>
+      <div class="plan-row-sub"><span>≈ ${formatMoney(monthAllocation(l, key))} за месяц</span></div>
+    </button>`;
+  }).join('');
+
+  card.innerHTML = `<section class="card plan-card">
+    <div class="card-head">
+      <h3>План на ${mName}</h3>
+      <button type="button" class="link-btn small-link" ${edit}>Изменить</button>
+    </div>
+    ${plan.inherited ? '<p class="small muted" style="margin:0 0 6px">Взят из прошлого месяца — нажмите «Изменить», чтобы поменять только этот месяц.</p>' : ''}
+    ${plan.income > 0 ? `<div class="plan-formula">${formatMoney(plan.income)}${plan.savings ? ` − ${formatMoney(plan.savings)} в копилку` : ''}${sum.allocated ? ` − ${formatMoney(sum.allocated)} лимиты` : ''} = <b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)} свободно</b></div>` : ''}
+    ${rows ? `<div class="section-title">Лимиты</div>${rows}` : ''}
+  </section>`;
 }
 
 /** Раз в день — напоминание, сколько можно потратить сегодня с учётом переноса. */

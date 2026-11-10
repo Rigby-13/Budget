@@ -103,7 +103,7 @@ async function renderExpenses() {
   $('sum-balance').textContent = (balance > 0 ? '+' : '') + formatMoney(balance);
 
   // План на месяц: лимиты на сегодня, перенос, итоги прошлого месяца
-  state.dailyIds = await renderPlanCard(`${state.year}-${String(state.month + 1).padStart(2, '0')}`, items);
+  state.dailyIds = await renderPlanCard(viewKey(), items);
   renderDetails(expense);
 
   // Сортировка: новые сверху
@@ -145,6 +145,11 @@ async function renderExpenses() {
   list.innerHTML = html;
 }
 
+/** 'ГГГГ-ММ' месяца, открытого на экране «Траты». */
+function viewKey() {
+  return `${state.year}-${String(state.month + 1).padStart(2, '0')}`;
+}
+
 // Секция «План и итоги месяца»: в текущем месяце свёрнута (по выбору),
 // в прошлых месяцах всегда открыта — там «Сегодня можно» не нужно.
 function detailsOpen() {
@@ -175,7 +180,7 @@ function shiftMonth(delta) {
  * Открыть окно «+». tx — запись для редактирования.
  * limitFor — сразу открыть вкладку «Лимит» (id категории или BUDGET).
  */
-function openTxSheet(tx = null, limitFor = null, categoryId = null) {
+function openTxSheet(tx = null, limitFor = null, categoryId = null, limitMonth = null) {
   state.editing = tx;
   state.formType = limitFor ? 'limit' : tx ? tx.type : 'expense';
   state.formCategoryId = tx ? tx.categoryId : categoryId || lastCategory(state.formType);
@@ -188,7 +193,7 @@ function openTxSheet(tx = null, limitFor = null, categoryId = null) {
   setExtraOpen(!!tx && (tx.date !== todayISO() || !!tx.comment));
 
   renderTypeToggle();
-  if (limitFor) showLimitForm(limitFor === BUDGET ? BUDGET : limitFor);
+  if (limitFor) showLimitForm(limitFor === BUDGET ? BUDGET : limitFor, limitMonth || viewKey());
   else renderCategoryChips();
 
   openSheet($('tx-sheet'));
@@ -373,7 +378,7 @@ function bindEvents() {
     const wasLimit = state.formType === 'limit';
     state.formType = b.dataset.type;
     renderTypeToggle();
-    if (state.formType === 'limit') { showLimitForm(); return; }
+    if (state.formType === 'limit') { showLimitForm(null, viewKey()); return; }
     if (wasLimit) $('tx-amount').value = '';
     state.formCategoryId = lastCategory(state.formType);
     renderCategoryChips();
@@ -383,7 +388,7 @@ function bindEvents() {
   // Нажатие на «Сегодня можно» — сразу записать трату в эту категорию.
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-plan-edit]');
-    if (b) { openTxSheet(null, b.dataset.planEdit); return; }
+    if (b) { openTxSheet(null, b.dataset.planEdit, null, b.dataset.planMonth || null); return; }
     const q = e.target.closest('[data-quick-add]');
     if (q) openTxSheet(null, null, q.dataset.quickAdd || null);
   });
