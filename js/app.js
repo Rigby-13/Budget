@@ -18,6 +18,7 @@ import {
   initTemplatesSettings, renderTemplatesSettings,
 } from './planui.js';
 import { initTestMode } from './testmode.js';
+import { initSavings } from './savings.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
 const DEFAULT_CATEGORIES = [
@@ -64,6 +65,7 @@ async function init() {
   initStats();
   initLimitForm();
   initTemplatesSettings();
+  initSavings();
   initTestMode();
   await renderExpenses();
 }
@@ -406,6 +408,12 @@ function bindEvents() {
   });
 
   $('tx-more').addEventListener('click', () => setExtraOpen(true));
+
+  // Копилка изменилась — обновляем итоги месяца и раздел «Накопления»
+  document.addEventListener('savings-changed', async () => {
+    await renderExpenses();
+    if (state.view === 'stats') await renderStats();
+  });
 
   // План изменился — перерисовываем
   document.addEventListener('plan-changed', async () => {

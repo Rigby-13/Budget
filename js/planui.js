@@ -16,6 +16,7 @@ import {
   monthBounds, prevMonthKey, listTemplates, newTemplate, saveTemplate, deleteTemplate,
   applyTemplate, monthsUsing, getTemplate,
 } from './plan.js';
+import { monthCloseBlock } from './savings.js';
 
 const BUDGET = '__budget__'; // особый «чип» — бюджет месяца
 
@@ -542,9 +543,10 @@ async function renderMonthReport(key) {
     <div class="daily-totals">
       <div><span class="muted">Сэкономлено</span><b class="income">+${formatMoney(res.saved)}</b></div>
       <div><span class="muted">Превышение</span><b class="negative">−${formatMoney(res.over)}</b></div>
-      <div><span class="muted">В копилку</span><b>${formatMoney(plan.savings)}</b></div>
+      <div><span class="muted">По плану</span><b>${formatMoney(plan.savings)}</b></div>
     </div>
-    <p class="small muted" style="margin:0">Подробности — в «Статистике» за ${monthName(prev)}. Новый месяц начат с чистого листа.</p>
+    ${await monthCloseBlock(prev)}
+    <p class="small muted" style="margin:8px 0 0">Подробности — в «Статистике» за ${monthName(prev)}. Новый месяц начат с чистого листа.</p>
   </section>`;
   $('month-report-close').addEventListener('click', () => {
     try { localStorage.setItem('monthReportClosed', prev); } catch { /* ничего */ }
