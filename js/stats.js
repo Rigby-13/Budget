@@ -11,7 +11,7 @@ import {
 import { $ } from './ui.js';
 import { renderSavings } from './savings.js';
 import {
-  getPlan, planSummary, monthResult, monthKeyOf, monthBounds, currentMonthKey, PERIODS,
+  getPlan, planSummary, monthResult, monthKeyOf, monthBounds, currentMonthKey, limitLabel,
 } from './plan.js';
 
 // Цвета категорий: 8 проверенных на различимость (в том числе при
@@ -292,7 +292,7 @@ async function renderPlan(categories, range) {
         : r.diff < 0 ? `<span class="negative">−${formatMoney(-r.diff)}</span>` : '<span class="muted">0 ₽</span>'}</div>
     </div>`;
   html += res.rows.map((r) => row(r.category.emoji, r.category.name,
-    `${formatMoney(r.limit.amount)} ${PERIODS[r.limit.period].short}`, r)).join('');
+    limitLabel(r.limit, formatMoney), r)).join('');
   if (res.other) html += row('🧺', 'Остальные траты', 'свободные деньги', res.other);
   if (!res.finished) {
     html += '<p class="small muted" style="margin:8px 0 0">Месячные лимиты и «остальные траты» подводятся в конце месяца. Сегодняшний день войдёт в итоги завтра.</p>';

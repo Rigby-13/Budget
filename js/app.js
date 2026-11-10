@@ -236,6 +236,7 @@ function renderTypeToggle() {
   $('tx-fields').hidden = isLimit;
   $('limit-fields').hidden = !isLimit;
   $('plan-picker').hidden = !isLimit;
+  if (!isLimit) $('amount-wrap').hidden = false; // в лимите «по дням недели» поле суммы скрыто
   $('amount-caption').hidden = !isLimit;
   $('tx-delete').hidden = isLimit || !state.editing;
 }

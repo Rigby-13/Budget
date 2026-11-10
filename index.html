@@ -220,7 +220,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.5</p>
+      <p class="small muted center">Версия 6.6</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -262,7 +262,7 @@
     <div class="sheet-body">
       <div class="plan-picker" id="plan-picker"></div>
       <div class="amount-caption" id="amount-caption" hidden>Сумма лимита</div>
-      <label class="amount-wrap">
+      <label class="amount-wrap" id="amount-wrap">
         <input id="tx-amount" type="text" inputmode="decimal" placeholder="0" aria-label="Сумма">
         <span class="currency">₽</span>
       </label>
@@ -275,6 +275,26 @@
           <button type="button" data-period="day" class="active">В день</button>
           <button type="button" data-period="week">В неделю</button>
           <button type="button" data-period="month">В месяц</button>
+        </div>
+        <!-- Разные суммы по дням недели (например, будни 300 ₽, выходные 500 ₽) -->
+        <label class="switch-row" id="wd-toggle-row">
+          <span>Разная сумма по дням недели</span>
+          <input type="checkbox" id="wd-toggle" class="switch">
+        </label>
+        <div id="wd-fields" hidden>
+          <div class="field-row">
+            <label class="field"><span>Будни (пн–пт), ₽</span><input id="wd-weekday" type="text" inputmode="decimal" placeholder="0"></label>
+            <label class="field"><span>Выходные (сб–вс), ₽</span><input id="wd-weekend" type="text" inputmode="decimal" placeholder="0"></label>
+          </div>
+          <div class="wd-grid" id="wd-grid">
+            <label><span>Пн</span><input data-wd="0" type="text" inputmode="decimal"></label>
+            <label><span>Вт</span><input data-wd="1" type="text" inputmode="decimal"></label>
+            <label><span>Ср</span><input data-wd="2" type="text" inputmode="decimal"></label>
+            <label><span>Чт</span><input data-wd="3" type="text" inputmode="decimal"></label>
+            <label><span>Пт</span><input data-wd="4" type="text" inputmode="decimal"></label>
+            <label class="we"><span>Сб</span><input data-wd="5" type="text" inputmode="decimal"></label>
+            <label class="we"><span>Вс</span><input data-wd="6" type="text" inputmode="decimal"></label>
+          </div>
         </div>
         <div id="budget-fields" hidden>
           <label class="field">
