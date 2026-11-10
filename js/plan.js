@@ -73,9 +73,8 @@ export async function getPlan(key) {
   };
 }
 
-/** План текущего месяца для редактирования (создаёт пустой, если нет). */
-export async function getPlanForEdit() {
-  const key = currentMonthKey();
+/** План месяца для редактирования (по умолчанию текущего; пустой, если нет). */
+export async function getPlanForEdit(key = currentMonthKey()) {
   return (await getPlan(key)) || { id: 'plan:' + key, month: key, income: 0, savings: 0, limits: [] };
 }
 
@@ -91,10 +90,12 @@ export function setLimit(plan, categoryId, period, amount) {
     existing.period = period;
     existing.amount = amount;
   } else {
-    // Новый лимит посреди месяца считается с сегодняшнего дня
-    const { from } = monthBounds(plan.month);
+    // Новый лимит посреди ТЕКУЩЕГО месяца считается с сегодняшнего дня,
+    // в будущем или прошлом месяце — с 1-го числа
+    const { from, to } = monthBounds(plan.month);
     const today = todayISO();
-    plan.limits.push({ categoryId, period, amount, since: today > from ? today : from });
+    const since = today > from && today <= to ? today : from;
+    plan.limits.push({ categoryId, period, amount, since });
   }
 }
 export function removeLimit(plan, categoryId) {

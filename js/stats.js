@@ -230,6 +230,7 @@ async function renderPlan(categories, range) {
   const key = state.mode === 'month' ? monthKeyOf(state.anchor) : monthKeyOf(range.to);
   const mName = MONTHS[Number(key.slice(5, 7)) - 1].toLowerCase();
   $('st-plan-title').textContent = `План · ${mName}`;
+  $('st-plan-edit').dataset.planMonth = key; // «Изменить» — план именно этого месяца
   const plan = await getPlan(key);
   const box = $('st-plan');
 
