@@ -36,17 +36,29 @@
       <span class="icon-btn" aria-hidden="true"></span>
     </header>
 
-    <section class="summary card">
-      <div class="summary-label">Расходы за месяц</div>
-      <div class="summary-main" id="sum-expense">0 ₽</div>
-      <div class="summary-row">
-        <div><span class="muted">Доходы</span><b id="sum-income" class="income">0 ₽</b></div>
-        <div><span class="muted">Баланс</span><b id="sum-balance">0 ₽</b></div>
-      </div>
-    </section>
-
     <div id="month-report"></div>
-    <div id="plan-card"></div>
+    <!-- Главное: сколько можно потратить сегодня -->
+    <div id="today-hero"></div>
+
+    <!-- Всё остальное — в свёрнутой секции -->
+    <div class="details" id="month-details">
+      <button type="button" class="details-toggle" id="details-toggle" aria-expanded="false">
+        <span class="chev">›</span>
+        <span class="details-title">План и итоги месяца</span>
+        <span class="details-hint" id="details-hint"></span>
+      </button>
+      <div class="details-body" id="details-body" hidden>
+        <section class="summary card">
+          <div class="summary-label">Расходы за месяц</div>
+          <div class="summary-main" id="sum-expense">0 ₽</div>
+          <div class="summary-row">
+            <div><span class="muted">Доходы</span><b id="sum-income" class="income">0 ₽</b></div>
+            <div><span class="muted">Баланс</span><b id="sum-balance">0 ₽</b></div>
+          </div>
+        </section>
+        <div id="plan-card"></div>
+      </div>
+    </div>
     <div id="tx-list"></div>
   </main>
 
@@ -202,6 +214,11 @@
       </div>
 
       <div id="tx-fields">
+        <!-- Дата и комментарий нужны редко — прячем под одной строкой -->
+        <button type="button" class="more-row" id="tx-more">
+          <span id="tx-more-date">📅 Сегодня</span><span class="muted">💬 комментарий ›</span>
+        </button>
+        <div id="tx-extra" hidden>
         <div class="field-row">
           <label class="field">
             <span>Дата</span>
@@ -212,6 +229,7 @@
           <span>Комментарий</span>
           <input id="tx-comment" type="text" placeholder="необязательно" enterkeyhint="done">
         </label>
+        </div>
       </div>
 
       <button type="button" class="danger-btn" id="tx-delete" hidden>Удалить запись</button>
@@ -315,7 +333,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6</p>
+      <p class="small muted center">Версия 6.1</p>
     </div>
   </div>
 

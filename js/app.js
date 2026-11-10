@@ -37,6 +37,7 @@ const state = {
   formType: 'expense',       // 'expense', 'income' или 'limit' в форме
   formCategoryId: null,      // выбранная категория в форме
   view: 'expenses',          // текущая вкладка
+  dailyIds: [],              // категории с дневным лимитом — первые в «+»
 };
 
 // =====================================================================
@@ -71,9 +72,11 @@ async function seedCategories() {
 }
 
 function categoriesOf(type) {
+  // Категории с дневным лимитом — первыми, остальные — в вашем порядке
+  const rank = (c) => (state.dailyIds.includes(c.id) ? 0 : 1);
   return state.categories
     .filter((c) => c.type === type && !c.archived)
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => rank(a) - rank(b) || a.order - b.order);
 }
 
 function categoryById(id) {
@@ -100,7 +103,8 @@ async function renderExpenses() {
   $('sum-balance').textContent = (balance > 0 ? '+' : '') + formatMoney(balance);
 
   // План на месяц: лимиты на сегодня, перенос, итоги прошлого месяца
-  await renderPlanCard(`${state.year}-${String(state.month + 1).padStart(2, '0')}`, items);
+  state.dailyIds = await renderPlanCard(`${state.year}-${String(state.month + 1).padStart(2, '0')}`, items);
+  renderDetails(expense);
 
   // Сортировка: новые сверху
   items.sort((a, b) => (b.date.localeCompare(a.date)) || (b.createdAt - a.createdAt));
@@ -141,6 +145,22 @@ async function renderExpenses() {
   list.innerHTML = html;
 }
 
+// Секция «План и итоги месяца»: в текущем месяце свёрнута (по выбору),
+// в прошлых месяцах всегда открыта — там «Сегодня можно» не нужно.
+function detailsOpen() {
+  try { return localStorage.getItem('detailsOpen') === '1'; } catch { return false; }
+}
+function renderDetails(expense) {
+  const n = now();
+  const isCurrent = state.year === n.getFullYear() && state.month === n.getMonth();
+  const open = !isCurrent || detailsOpen();
+  $('details-toggle').hidden = !isCurrent;
+  $('details-body').hidden = !open;
+  $('details-toggle').setAttribute('aria-expanded', String(open));
+  $('month-details').classList.toggle('open', open);
+  $('details-hint').textContent = open ? '' : `расходы ${formatMoney(expense)}`;
+}
+
 function shiftMonth(delta) {
   const d = new Date(state.year, state.month + delta, 1);
   state.year = d.getFullYear();
@@ -155,15 +175,17 @@ function shiftMonth(delta) {
  * Открыть окно «+». tx — запись для редактирования.
  * limitFor — сразу открыть вкладку «Лимит» (id категории или BUDGET).
  */
-function openTxSheet(tx = null, limitFor = null) {
+function openTxSheet(tx = null, limitFor = null, categoryId = null) {
   state.editing = tx;
   state.formType = limitFor ? 'limit' : tx ? tx.type : 'expense';
-  state.formCategoryId = tx ? tx.categoryId : lastCategory(state.formType);
+  state.formCategoryId = tx ? tx.categoryId : categoryId || lastCategory(state.formType);
 
   $('tx-amount').value = tx ? moneyToInput(tx.amount) : '';
   $('tx-date').value = tx ? tx.date : todayISO();
   $('tx-comment').value = tx ? tx.comment || '' : '';
   $('tx-delete').hidden = !tx;
+  // Дату и комментарий показываем сразу, только если они уже заполнены
+  setExtraOpen(!!tx && (tx.date !== todayISO() || !!tx.comment));
 
   renderTypeToggle();
   if (limitFor) showLimitForm(limitFor === BUDGET ? BUDGET : limitFor);
@@ -214,6 +236,11 @@ function renderCategoryChips() {
     </button>`;
 }
 
+function setExtraOpen(open) {
+  $('tx-extra').hidden = !open;
+  $('tx-more').hidden = open;
+}
+
 // Запоминаем последнюю использованную категорию — чтобы добавлять быстрее
 function lastCategory(type) {
   try { return localStorage.getItem('lastCat:' + type); } catch { return null; }
@@ -253,14 +280,25 @@ async function saveForm(e) {
   rememberCategory(tx.type, tx.categoryId);
 
   const wasEditing = !!state.editing;
+  const before = state.editing ? { ...state.editing } : null;
   closeTxSheet();
 
   // Если запись в другом месяце — переключаемся на него, чтобы её было видно
   const [y, m] = date.split('-').map(Number);
   state.year = y; state.month = m - 1;
   await renderExpenses();
+  // Кнопка «Отменить»: удаляет новую запись или возвращает старую версию
+  const undo = {
+    label: 'Отменить',
+    async onClick() {
+      if (before) await db.put('transactions', before);
+      else await db.remove('transactions', tx.id);
+      await renderExpenses();
+      toast('Отменено');
+    },
+  };
   // Если у категории есть лимит — покажем остаток вместо «Добавлено»
-  if (!(await planToastAfterSave(tx))) toast(wasEditing ? 'Сохранено' : 'Добавлено');
+  if (!(await planToastAfterSave(tx, undo))) toast(wasEditing ? 'Сохранено' : 'Добавлено', 4000, undo);
 }
 
 async function deleteCurrent() {
@@ -341,11 +379,23 @@ function bindEvents() {
     renderCategoryChips();
   });
 
-  // Нажатие на строку плана / кнопку «Изменить» — открыть вкладку «Лимит»
+  // Нажатие на строку плана / кнопку «Изменить» — открыть вкладку «Лимит».
+  // Нажатие на «Сегодня можно» — сразу записать трату в эту категорию.
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-plan-edit]');
-    if (b) openTxSheet(null, b.dataset.planEdit);
+    if (b) { openTxSheet(null, b.dataset.planEdit); return; }
+    const q = e.target.closest('[data-quick-add]');
+    if (q) openTxSheet(null, null, q.dataset.quickAdd || null);
   });
+
+  $('details-toggle').addEventListener('click', () => {
+    const open = $('details-body').hidden;
+    try { localStorage.setItem('detailsOpen', open ? '1' : '0'); } catch { /* ничего */ }
+    renderDetails(0);
+    renderExpenses();
+  });
+
+  $('tx-more').addEventListener('click', () => setExtraOpen(true));
 
   // План изменился — перерисовываем
   document.addEventListener('plan-changed', async () => {

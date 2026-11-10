@@ -71,11 +71,28 @@ export function shake(el) {
 }
 
 let toastTimer;
-/** Всплывающее сообщение внизу экрана. */
-export function toast(text, ms = 2000) {
+/**
+ * Всплывающее сообщение внизу экрана.
+ * action — необязательная кнопка: { label: 'Отменить', onClick() {} }
+ */
+export function toast(text, ms = 2000, action = null) {
   const t = $('toast');
-  t.textContent = text;
+  t.innerHTML = '';
+  const span = document.createElement('span');
+  span.textContent = text;
+  t.appendChild(span);
+  t.classList.toggle('has-action', !!action);
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = action.label;
+    b.addEventListener('click', () => {
+      t.classList.remove('show');
+      action.onClick();
+    });
+    t.appendChild(b);
+  }
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+  toastTimer = setTimeout(() => t.classList.remove('show'), action ? Math.max(ms, 4000) : ms);
 }

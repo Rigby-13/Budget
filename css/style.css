@@ -517,3 +517,45 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 }
 #test-bar button:active { background: rgba(0, 0, 0, 0.25); }
 body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
+
+/* =====================================================================
+   6.1: чистый главный экран
+   ===================================================================== */
+.hero { margin-bottom: 14px; padding: 18px 16px; }
+.hero-main { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; gap: 2px; }
+.hero-main:active { opacity: 0.7; }
+.hero-label { font-size: 15px; color: var(--muted); }
+.hero-amount { font-size: 44px; font-weight: 700; letter-spacing: -1px; line-height: 1.1; }
+.hero-amount.warn { color: var(--warn); }
+.hero-amount.over { color: var(--danger); }
+.hero .limit-bar { width: 100%; margin: 10px 0 8px; }
+.hero-sub { font-size: 14px; color: var(--muted); }
+.hero-row {
+  display: flex; justify-content: space-between; width: 100%;
+  padding: 12px 0 2px; margin-top: 10px; border-top: 0.5px solid var(--line); font-size: 15px;
+}
+.hero-row:active { opacity: 0.6; }
+.hero-empty { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; }
+.hero-cta { color: var(--accent); font-weight: 600; }
+
+.details { margin-bottom: 16px; }
+.details-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 10px 4px; font-size: 15px; color: var(--muted);
+}
+.details-toggle .chev { display: inline-block; transition: transform 0.2s; font-size: 18px; width: 12px; }
+.details.open .details-toggle .chev { transform: rotate(90deg); }
+.details-title { font-weight: 500; }
+.details-hint { margin-left: auto; font-size: 14px; }
+.details-body { padding-top: 4px; }
+.details-body .plan-card { margin: 0; }
+
+.more-row {
+  display: flex; justify-content: space-between; width: 100%;
+  padding: 14px; border-radius: 12px; background: var(--card); font-size: 15px;
+}
+
+.toast.has-action { pointer-events: auto; display: flex; align-items: center; gap: 14px; padding: 8px 8px 8px 18px; }
+.toast button { color: var(--accent); font-weight: 600; padding: 6px 10px; border-radius: 14px; }
+@media (prefers-color-scheme: dark) { .toast button { color: #0a84ff; } }
+.hero-cta { white-space: nowrap; margin-left: 12px; }
