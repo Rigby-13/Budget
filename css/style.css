@@ -651,3 +651,43 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 .topbar-side { width: 62px; }
 .month-switch .icon-btn { width: 36px; }
 .month-switch h1 { white-space: nowrap; font-size: 20px; }
+
+/* =====================================================================
+   6.5: гайд при первом открытии
+   ===================================================================== */
+.guide {
+  position: fixed; inset: 0; z-index: 60;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  padding: var(--safe-top) 0 var(--safe-bottom);
+  opacity: 0; transition: opacity 0.25s;
+}
+.guide.open { opacity: 1; }
+.g-top { display: flex; justify-content: flex-end; padding: 6px 12px 0; min-height: 44px; }
+.g-track {
+  flex: 1; display: flex; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.g-track::-webkit-scrollbar { display: none; }
+.g-slide {
+  flex: 0 0 100%; scroll-snap-align: center; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 12px 28px; text-align: center;
+}
+.g-emoji { font-size: 76px; line-height: 1; margin-bottom: 18px; }
+.g-slide h2 { font-size: 26px; margin: 0 0 12px; }
+.g-text { font-size: 17px; line-height: 1.5; margin: 0 0 16px; }
+.g-note { font-size: 15px; line-height: 1.45; color: var(--muted); margin: 8px 0 0; }
+.g-mock {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; max-width: 320px; text-align: left;
+  background: var(--card); border-radius: 16px; padding: 14px 16px; margin: 4px 0 8px;
+}
+.g-mock.small { font-size: 14px; line-height: 1.6; display: block; }
+.g-mock .limit-bar { width: 100%; margin: 8px 0 6px; }
+.g-big { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+.g-bottom { padding: 8px 20px 16px; }
+.g-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 14px; }
+.g-dots i { width: 8px; height: 8px; border-radius: 4px; background: var(--line); transition: width 0.2s, background 0.2s; cursor: pointer; }
+.g-dots i.active { width: 22px; background: var(--accent); }

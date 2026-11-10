@@ -186,6 +186,10 @@
   <main id="view-settings" class="view">
     <header class="topbar"><h1>Настройки</h1></header>
 
+      <button type="button" class="plain-btn row-btn" id="settings-guide">
+        <span>📖 Как пользоваться</span><span class="muted">›</span>
+      </button>
+
       <div class="section-title">Категории</div>
       <button type="button" class="plain-btn row-btn" id="settings-cats">
         <span>🏷️ Категории расходов и доходов</span><span class="muted">›</span>
@@ -216,7 +220,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.4.1</p>
+      <p class="small muted center">Версия 6.5</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -455,6 +459,19 @@
 
   <!-- Меню действий снизу экрана -->
   <div id="action-sheet" class="sheet action-sheet"></div>
+
+  <!-- ============ ГАЙД ПРИ ПЕРВОМ ОТКРЫТИИ ============ -->
+  <div id="guide" class="guide" hidden>
+    <div class="g-top">
+      <button type="button" class="link-btn" id="guide-skip">Пропустить</button>
+    </div>
+    <div class="g-track" id="guide-track"></div>
+    <div class="g-bottom">
+      <div class="g-dots" id="guide-dots"></div>
+      <button type="button" class="primary-btn full" id="guide-next">Далее</button>
+      <button type="button" class="secondary-btn full" id="guide-wallet" hidden>Указать мои деньги</button>
+    </div>
+  </div>
 
   <div id="toast" class="toast" role="status"></div>
 
