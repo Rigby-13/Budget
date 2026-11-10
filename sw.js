@@ -8,7 +8,7 @@
 // а старые и новые файлы никогда не смешиваются.
 // =====================================================================
 
-const VERSION = '6.8';
+const VERSION = '6.9';
 const CACHE = 'budget-v' + VERSION;
 const NETWORK_TIMEOUT = 3000; // мс: дольше ждать сеть нет смысла
 const FILES = [
@@ -32,6 +32,7 @@ const FILES = [
   './js/importparse.js',
   './js/importer.js',
   './js/importpdf.js',
+  './js/reset.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',

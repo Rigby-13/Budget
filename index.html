@@ -31,6 +31,7 @@
         <!-- Тап по названию — выбрать любой день (например, чтобы записать прошлую трату) -->
         <label class="month-pick">
           <h1 id="month-title">Месяц</h1>
+          <span class="month-sub" id="month-sub"></span>
           <input id="month-pick" type="date" aria-label="Выбрать день">
         </label>
         <button class="icon-btn" id="next-month" aria-label="Следующий месяц">›</button>
@@ -246,10 +247,24 @@
         </label>
       </div>
 
+      <div class="section-title danger-title">Удаление записей</div>
+      <div class="card reset-card">
+        <div class="reset-warn">⚠️ Удаление нельзя отменить. Перед удалением сохраните резервную копию.</div>
+        <button type="button" class="secondary-btn full" id="reset-backup">Сохранить копию</button>
+
+        <div class="section-title" style="margin-top:16px">Траты и доходы за месяцы</div>
+        <div id="reset-months"></div>
+        <button type="button" class="danger-outline full" id="reset-selected" disabled>Выберите месяцы</button>
+
+        <div class="section-title" style="margin-top:16px">За всё время</div>
+        <button type="button" class="danger-outline full" id="reset-all-tx">Удалить все траты и доходы</button>
+        <button type="button" class="danger-fill full" id="reset-app">Сбросить всё приложение</button>
+      </div>
+
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.8</p>
+      <p class="small muted center">Версия 6.9</p>
   </main>
 
   <!-- Большая кнопка «+» -->
