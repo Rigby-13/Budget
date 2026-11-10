@@ -45,6 +45,7 @@
       </div>
     </section>
 
+    <div id="daily-card"></div>
     <div id="limit-alerts"></div>
     <div id="tx-list"></div>
   </main>
@@ -105,7 +106,13 @@
       <div class="monthly-caption" id="st-monthly-caption"></div>
     </section>
 
-    <!-- Лимиты -->
+    <!-- Дневные лимиты: сэкономлено / превышение -->
+    <section class="card chart-card">
+      <div class="card-head"><h3>Лимиты в день</h3></div>
+      <div id="st-daily"></div>
+    </section>
+
+    <!-- Лимиты на месяц -->
     <section class="card chart-card">
       <div class="card-head"><h3 id="st-limits-title">Лимиты</h3></div>
       <div id="st-limits"></div>
@@ -286,7 +293,7 @@
           <input id="backup-file" type="file" accept="application/json,.json">
         </label>
       </div>
-      <p class="small muted center">Версия 5</p>
+      <p class="small muted center">Версия 5.1</p>
     </div>
   </div>
 
@@ -319,10 +326,16 @@
         <span>Название</span>
         <input id="cat-name" type="text" placeholder="Например, Кафе" maxlength="30" enterkeyhint="done">
       </label>
-      <label class="field" id="cat-limit-field">
-        <span>Лимит в месяц, ₽ (необязательно)</span>
-        <input id="cat-limit" type="text" inputmode="decimal" placeholder="Без лимита">
-      </label>
+      <div class="field-row" id="cat-limit-field">
+        <label class="field">
+          <span>Лимит в день, ₽</span>
+          <input id="cat-daily-limit" type="text" inputmode="decimal" placeholder="Нет">
+        </label>
+        <label class="field">
+          <span>Лимит в месяц, ₽</span>
+          <input id="cat-limit" type="text" inputmode="decimal" placeholder="Нет">
+        </label>
+      </div>
       <label class="field">
         <span>Свой эмодзи (впишите с клавиатуры) или выберите ниже</span>
         <input id="cat-emoji-input" type="text" placeholder="😀">

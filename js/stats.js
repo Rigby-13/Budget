@@ -6,9 +6,10 @@
 import * as db from './db.js';
 import {
   formatMoney, formatMoneyShort, toISODate, fromISODate, todayISO, monthRange,
-  startOfWeek, rangeLabel, daysBetween, MONTHS, MONTHS_SHORT, escapeHTML,
+  startOfWeek, rangeLabel, daysBetween, MONTHS, MONTHS_SHORT, escapeHTML, plural,
 } from './utils.js';
-import { $, toast } from './ui.js';
+import { $ } from './ui.js';
+import { limitStatuses, dailyResults, todayStatuses } from './limits.js';
 import { openCategories } from './categories.js';
 
 // Цвета категорий: 8 проверенных на различимость (в том числе при
@@ -63,48 +64,6 @@ function shift(delta) {
 }
 
 // =====================================================================
-// ЛИМИТЫ (используются и на вкладке «Траты»)
-// =====================================================================
-/**
- * Для каждой категории с лимитом: сколько потрачено за месяц и статус.
- * status: 'ok' (< 80%), 'warn' (80–99%), 'over' (100% и больше)
- */
-export function limitStatuses(categories, monthTransactions) {
-  const spent = new Map();
-  for (const t of monthTransactions) {
-    if (t.type === 'expense') spent.set(t.categoryId, (spent.get(t.categoryId) || 0) + t.amount);
-  }
-  return categories
-    .filter((c) => c.type === 'expense' && c.limit > 0 && !c.archived)
-    .sort((a, b) => a.order - b.order)
-    .map((c) => {
-      const s = spent.get(c.id) || 0;
-      const pct = Math.round((s / c.limit) * 100);
-      return { category: c, spent: s, limit: c.limit, pct, status: pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok' };
-    });
-}
-
-/** Предупреждение после добавления траты, если подбираемся к лимиту. */
-export async function checkLimitAfterSave(tx) {
-  if (tx.type !== 'expense') return false;
-  const cat = await db.get('categories', tx.categoryId);
-  if (!cat || !(cat.limit > 0)) return false;
-  const [y, m] = tx.date.split('-').map(Number);
-  const { from, to } = monthRange(y, m - 1);
-  const items = await db.getTransactionsBetween(from, to);
-  const st = limitStatuses([cat], items)[0];
-  if (st.status === 'over') {
-    toast(`⛔ Лимит «${cat.name}» превышен: ${formatMoney(st.spent)} из ${formatMoney(st.limit)}`, 4000);
-    return true;
-  }
-  if (st.status === 'warn') {
-    toast(`⚠️ «${cat.name}»: ${st.pct}% лимита, осталось ${formatMoney(st.limit - st.spent)}`, 4000);
-    return true;
-  }
-  return false;
-}
-
-// =====================================================================
 // ОТРИСОВКА
 // =====================================================================
 export async function renderStats() {
@@ -128,6 +87,7 @@ export async function renderStats() {
   renderSummary(items, range);
   renderBreakdown(items, categories);
   await renderMonthly(range);
+  await renderDaily(categories, range);
   await renderLimits(categories);
 }
 
@@ -268,7 +228,7 @@ async function renderLimits(categories) {
   const { from, to } = monthRange(base.getFullYear(), base.getMonth());
   const items = await db.getTransactionsBetween(from, to);
   const list = limitStatuses(categories, items);
-  $('st-limits-title').textContent = `Лимиты · ${MONTHS[base.getMonth()].toLowerCase()}`;
+  $('st-limits-title').textContent = `Лимиты на месяц · ${MONTHS[base.getMonth()].toLowerCase()}`;
 
   if (!list.length) {
     $('st-limits').innerHTML = `<p class="small muted" style="margin:0 0 10px">
@@ -290,6 +250,46 @@ async function renderLimits(categories) {
       ${label}
     </div>`;
   }).join('');
+}
+
+/** Дневные лимиты: сколько сэкономлено и сколько превышено за период. */
+async function renderDaily(categories, range) {
+  const items = await db.getTransactionsBetween(range.from, range.to);
+  const res = dailyResults(categories, items, range.from, range.to);
+  const anyLimit = categories.some((c) => (c.dailyLimits || []).some((e) => e.amount > 0));
+
+  if (!anyLimit) {
+    $('st-daily').innerHTML = `<p class="small muted" style="margin:0 0 10px">
+      Задайте лимит в день (например, 300 ₽ на еду) — приложение будет считать,
+      сколько вы сэкономили и на сколько превысили лимит.</p>`;
+    return;
+  }
+  if (!res.rows.length) {
+    $('st-daily').innerHTML = `<p class="small muted" style="margin:0 0 10px">
+      За этот период завершённых дней с лимитом пока нет. Сегодняшний день попадёт в итоги завтра.</p>`;
+    return;
+  }
+
+  const net = res.saved - res.over;
+  $('st-daily').innerHTML = `
+    <div class="daily-totals">
+      <div><span class="muted">Сэкономлено</span><b class="income">+${formatMoney(res.saved)}</b></div>
+      <div><span class="muted">Превышение</span><b class="negative">−${formatMoney(res.over)}</b></div>
+      <div><span class="muted">Итого</span><b class="${net < 0 ? 'negative' : 'income'}">${net >= 0 ? '+' : '−'}${formatMoney(Math.abs(net))}</b></div>
+    </div>
+    ${res.rows.map((r) => `
+      <div class="daily-row">
+        <div class="daily-name">
+          <span>${r.category.emoji} ${escapeHTML(r.category.name)}</span>
+          <small class="muted">в лимите ${r.daysOk} ${plural(r.daysOk, 'день', 'дня', 'дней')}${r.daysOver ? ` · превышен ${r.daysOver} ${plural(r.daysOver, 'день', 'дня', 'дней')}` : ''}</small>
+        </div>
+        <div class="daily-sums">
+          ${r.saved ? `<span class="income">+${formatMoney(r.saved)}</span>` : ''}
+          ${r.over ? `<span class="negative">−${formatMoney(r.over)}</span>` : ''}
+          ${!r.saved && !r.over ? '<span class="muted">ровно в лимит</span>' : ''}
+        </div>
+      </div>`).join('')}
+    <p class="small muted" style="margin:8px 0 0">Сегодняшний день попадёт в итоги завтра.</p>`;
 }
 
 // =====================================================================
