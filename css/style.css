@@ -1,7 +1,8 @@
 /* =====================================================================
    style.css — внешний вид приложения.
    Цвета заданы переменными (--bg, --text, ...). Для тёмной темы
-   ниже они просто переопределяются — тема берётся из настроек iPhone.
+   ниже они переопределяются: тема (светлая/тёмная) и стиль (Классика/Лес/Огород)
+   задаются атрибутами data-theme и data-style на <html> (см. js/theme.js).
    ===================================================================== */
 
 :root {
@@ -16,6 +17,7 @@
   --danger: #ff3b30;
   --chip: #eeeef0;
   --tabbar: rgba(249, 249, 249, 0.92);
+  --on-accent: #ffffff;    /* текст на кнопках цвета акцента */
 
   /* Безопасные отступы айфона: чёлка сверху, полоска снизу */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -23,8 +25,7 @@
   --tabbar-h: 56px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root[data-theme="dark"] {
     --bg: #000000;
     --card: #1c1c1e;
     --text: #f2f2f7;
@@ -37,7 +38,6 @@
     --chip: #2c2c2e;
     --tabbar: rgba(22, 22, 24, 0.92);
   }
-}
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -123,7 +123,7 @@ input { font: inherit; color: inherit; }
   right: 20px;
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 16px);
   width: 64px; height: 64px; border-radius: 32px;
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--on-accent);
   font-size: 36px; font-weight: 300; line-height: 1;
   box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
   transition: transform 0.15s;
@@ -253,7 +253,7 @@ input { font: inherit; color: inherit; }
    Этап 2: долги, настройки
    ===================================================================== */
 :root { --owe: #ff9500; --warn: #ff9500; }
-@media (prefers-color-scheme: dark) { :root { --owe: #ff9f0a; --warn: #ff9f0a; } }
+:root[data-theme="dark"] { --owe: #ff9f0a; --warn: #ff9f0a; }
 
 .owe { color: var(--owe); }
 .small { font-size: 14px; line-height: 1.4; }
@@ -309,7 +309,7 @@ input { font: inherit; color: inherit; }
   display: block; text-align: center;
   padding: 12px; border-radius: 12px; font-weight: 600; min-height: 46px;
 }
-.primary-btn { background: var(--accent); color: #fff; }
+.primary-btn { background: var(--accent); color: var(--on-accent); }
 .secondary-btn { background: var(--chip); color: var(--accent); }
 .plain-btn { width: 100%; background: var(--card); color: var(--accent); font-weight: 500; }
 .primary-btn:active, .secondary-btn:active, .plain-btn:active { opacity: 0.7; }
@@ -374,15 +374,13 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
   --series-expense: #2a78d6;
   --series-income: #1baf7a;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
+:root[data-theme="dark"] {
     --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
     --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
     --c-other: #6b6a65;
     --series-expense: #3987e5;
     --series-income: #199e70;
   }
-}
 
 .negative { color: var(--danger); }
 
@@ -557,7 +555,7 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 
 .toast.has-action { pointer-events: auto; display: flex; align-items: center; gap: 14px; padding: 8px 8px 8px 18px; }
 .toast button { color: var(--accent); font-weight: 600; padding: 6px 10px; border-radius: 14px; }
-@media (prefers-color-scheme: dark) { .toast button { color: #0a84ff; } }
+:root[data-theme="dark"] .toast button { color: #0a84ff; }
 .hero-cta { white-space: nowrap; margin-left: 12px; }
 
 /* =====================================================================
@@ -574,7 +572,7 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 .tpl-row:active { opacity: 0.6; }
 .tpl-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tpl-main small { font-size: 13px; }
-.badge { font-size: 12px; background: var(--accent); color: #fff; border-radius: 10px; padding: 2px 8px; }
+.badge { font-size: 12px; background: var(--accent); color: var(--on-accent); border-radius: 10px; padding: 2px 8px; }
 
 /* Меню действий — прижато к низу, по высоте содержимого */
 .sheet.action-sheet {
@@ -735,7 +733,7 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
   height: 34px; padding: 0 14px; border-radius: 17px; font-size: 14px; font-weight: 600;
   background: var(--chip); color: var(--accent);
 }
-.date-bar-add { background: var(--accent); color: #fff; }
+.date-bar-add { background: var(--accent); color: var(--on-accent); }
 .date-bar-btn:active, .date-bar-add:active { opacity: 0.7; }
 .day-group.flash .day-list { box-shadow: 0 0 0 2px var(--accent); transition: box-shadow 0.3s; }
 
@@ -867,7 +865,7 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
   background: var(--bg); border: 1.5px solid var(--line); font-size: 15px;
 }
 .field input.emoji-input::placeholder { color: var(--muted); }
-@media (prefers-color-scheme: dark) { .field input.emoji-input { background: #000; border-color: #3a3a3c; } }
+:root[data-theme="dark"] .field input.emoji-input { background: #000; border-color: #3a3a3c; }
 /* Красный фон виден только во время свайпа */
 .cat-swipe-bg { opacity: 0; }
 .cat-row.swiping .cat-swipe-bg, .cat-row.open-left .cat-swipe-bg, .cat-row.open-right .cat-swipe-bg { opacity: 1; }
@@ -886,7 +884,7 @@ html, body { height: 100%; overflow: hidden; }
 
 /* «+» — нарисованный крестик точно по центру */
 #fab { display: grid; place-items: center; font-size: 0; }
-#fab svg { width: 30px; height: 30px; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; fill: none; }
+#fab svg { width: 30px; height: 30px; stroke: var(--on-accent); stroke-width: 2.6; stroke-linecap: round; fill: none; }
 
 /* Большой эмодзи — кнопка */
 .emoji-preview { display: grid; border: 0; cursor: pointer; margin-bottom: 6px; }
@@ -902,3 +900,144 @@ html, body { height: 100%; overflow: hidden; }
 /* Без приближения двойным тапом */
 html, body { touch-action: manipulation; }
 .month-pick input, .chip-date input, .test-date input { font-size: 16px; }
+
+/* =====================================================================
+   7.0: оформление — стиль (Классика / Лес / Огород) × тема (светлая / тёмная)
+   ===================================================================== */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* Шрифт для заголовков и крупных сумм в стилях «Лес» и «Огород» (лежит в приложении) */
+@font-face {
+  font-family: 'Unbounded'; font-weight: 700; font-style: normal; font-display: swap;
+  src: url('../fonts/unbounded-cyrillic-700-normal.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Unbounded'; font-weight: 700; font-style: normal; font-display: swap;
+  src: url('../fonts/unbounded-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
+}
+
+/* ---------- Лес · светлая ---------- */
+:root[data-style="forest"][data-theme="light"] {
+  --bg: #eef3ec; --card: #ffffff; --text: #13261c; --muted: #5d7468; --line: #d7e3da;
+  --accent: #d23f36; --on-accent: #ffffff; --income: #2f8a5b; --expense: #13261c;
+  --danger: #c8302c; --warn: #b8610a; --chip: #e2ece5; --tabbar: rgba(238, 243, 236, 0.94);
+  --deco-bg: linear-gradient(150deg, #ffb3a7 0%, #ff7a68 55%, #e2483f 100%); --deco-text: #2a0f0c;
+  --hero-bg: #1d4a33; --hero-text: #f6ebe4; --hero-muted: #b5cdbf; --hero-amount: #a6e3c3; --hero-track: #133524;
+}
+/* ---------- Лес · тёмная ---------- */
+:root[data-style="forest"][data-theme="dark"] {
+  --bg: #10221a; --card: #1b3a2b; --text: #f6ebe4; --muted: #a9c2b4; --line: #24493a;
+  --accent: #ff7a68; --on-accent: #2a0f0c; --income: #7fd1a6; --expense: #f6ebe4;
+  --danger: #ff6b6b; --warn: #ffb35c; --chip: #24493a; --tabbar: rgba(12, 26, 19, 0.94);
+  --deco-bg: linear-gradient(150deg, #ffb3a7 0%, #ff7a68 55%, #e2483f 100%); --deco-text: #2a0f0c;
+  --hero-bg: #1b3a2b; --hero-text: #f6ebe4; --hero-muted: #a9c2b4; --hero-amount: #a6e3c3; --hero-track: #10221a;
+}
+/* ---------- Огород · светлая ---------- */
+:root[data-style="garden"][data-theme="light"] {
+  --bg: #fbf7f0; --card: #ffffff; --text: #17131f; --muted: #6a6478; --line: #ece6dc;
+  --accent: #3b5bff; --on-accent: #ffffff; --income: #3f8f1f; --expense: #17131f;
+  --danger: #e0245e; --warn: #c26a00; --chip: #f2ece2; --tabbar: rgba(251, 247, 240, 0.94);
+  --deco-bg: radial-gradient(120% 140% at 0% 0%, #ffd23f 0%, #ff8a2b 45%, #ff5fa2 100%); --deco-text: #1a0a24;
+  --hero-bg: linear-gradient(160deg, #2a3bd6 0%, #3b5bff 55%, #6b8cff 100%); --hero-text: #ffffff; --hero-muted: #dfe5ff; --hero-amount: #e8ff9e; --hero-track: rgba(0, 0, 0, 0.28);
+}
+/* ---------- Огород · тёмная ---------- */
+:root[data-style="garden"][data-theme="dark"] {
+  --bg: #0a0a0e; --card: #16161d; --text: #ffffff; --muted: #a7a7b8; --line: #23232e;
+  --accent: #ffb020; --on-accent: #1a0a24; --income: #b6e35a; --expense: #ffffff;
+  --danger: #ff5f8f; --warn: #ffc93c; --chip: #23232e; --tabbar: rgba(15, 15, 21, 0.94);
+  --deco-bg: radial-gradient(120% 140% at 0% 0%, #ffd23f 0%, #ff8a2b 45%, #ff5fa2 100%); --deco-text: #1a0a24;
+  --hero-bg: linear-gradient(160deg, #2a3bd6 0%, #3b5bff 55%, #6b8cff 100%); --hero-text: #ffffff; --hero-muted: #dfe5ff; --hero-amount: #e8ff9e; --hero-track: rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- Общее для «Леса» и «Огорода» ---------- */
+:root[data-style="forest"] h1, :root[data-style="garden"] h1,
+:root[data-style="forest"] .balance-amount, :root[data-style="garden"] .balance-amount,
+:root[data-style="forest"] .hero-amount, :root[data-style="garden"] .hero-amount,
+:root[data-style="forest"] .summary-main, :root[data-style="garden"] .summary-main {
+  font-family: 'Unbounded', -apple-system, system-ui, sans-serif; letter-spacing: -0.5px;
+}
+:root[data-style="forest"] .card, :root[data-style="garden"] .card { border-radius: 22px; }
+:root[data-style="forest"] .day-list, :root[data-style="garden"] .day-list { border-radius: 20px; }
+:root[data-style="forest"] .tx-emoji, :root[data-style="garden"] .tx-emoji { border-radius: 13px; }
+
+/* Карточка «Мои деньги»: цветная, с узором справа.
+   Узор стоит в своей зоне — текст до него не доходит (padding-right). */
+:root[data-style="forest"] .balance-card, :root[data-style="garden"] .balance-card {
+  position: relative; overflow: hidden; background: var(--deco-bg); color: var(--deco-text);
+  padding-right: 112px; border-radius: 26px;
+}
+:root[data-style="forest"] .balance-card .hero-label, :root[data-style="garden"] .balance-card .hero-label,
+:root[data-style="forest"] .balance-card .balance-sub, :root[data-style="garden"] .balance-card .balance-sub { color: var(--deco-text); opacity: 0.78; }
+:root[data-style="forest"] .balance-card .balance-cta, :root[data-style="garden"] .balance-card .balance-cta { color: var(--deco-text); text-decoration: underline; }
+:root[data-style="forest"] .balance-amount, :root[data-style="garden"] .balance-amount { font-size: 34px; }
+
+/* Карточка «Сегодня можно» */
+:root[data-style="forest"] .hero, :root[data-style="garden"] .hero {
+  position: relative; overflow: hidden; background: var(--hero-bg); color: var(--hero-text);
+  padding-right: 104px; border-radius: 26px;
+}
+:root[data-style="forest"] .hero .hero-label, :root[data-style="garden"] .hero .hero-label,
+:root[data-style="forest"] .hero .hero-sub, :root[data-style="garden"] .hero .hero-sub { color: var(--hero-muted); }
+:root[data-style="forest"] .hero .hero-amount.ok, :root[data-style="garden"] .hero .hero-amount.ok { color: var(--hero-amount); }
+:root[data-style="forest"] .hero .limit-bar, :root[data-style="garden"] .hero .limit-bar { background: var(--hero-track); }
+:root[data-style="forest"] .hero .limit-bar.ok i, :root[data-style="garden"] .hero .limit-bar.ok i { background: var(--hero-amount); }
+:root[data-style="forest"] .hero .hero-row, :root[data-style="garden"] .hero .hero-row { border-top-color: rgba(255, 255, 255, 0.15); color: var(--hero-text); }
+:root[data-style="forest"] .hero .today-val.ok, :root[data-style="garden"] .hero .today-val.ok { color: var(--hero-text); }
+:root[data-style="forest"] .hero .income, :root[data-style="garden"] .hero .income { color: var(--hero-amount); }
+:root[data-style="forest"] .hero-empty .hero-label, :root[data-style="garden"] .hero-empty .hero-label { color: var(--hero-muted); }
+:root[data-style="forest"] .hero-empty .hero-cta, :root[data-style="garden"] .hero-empty .hero-cta { color: var(--hero-amount); }
+/* Пустая карточка без узора — вся ширина */
+:root[data-style="forest"] .hero.hero-empty, :root[data-style="garden"] .hero.hero-empty { padding-right: 16px; }
+
+/* Содержимое — над текстурой и узором */
+:root[data-style="forest"] .balance-card > *, :root[data-style="garden"] .balance-card > *,
+:root[data-style="forest"] .hero > *, :root[data-style="garden"] .hero > * { position: relative; z-index: 1; }
+
+/* Зернистая текстура — под текстом */
+:root[data-style="forest"] .balance-card::before, :root[data-style="garden"] .balance-card::before,
+:root[data-style="forest"] .hero::before, :root[data-style="garden"] .hero::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.22; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+}
+
+/* Узоры (иллюстрации) — в правой зоне карточки */
+:root[data-style="forest"] .balance-card::after, :root[data-style="garden"] .balance-card::after,
+:root[data-style="forest"] .hero:not(.hero-empty)::after, :root[data-style="garden"] .hero:not(.hero-empty)::after {
+  content: ''; position: absolute; z-index: 0; pointer-events: none;
+  right: 6px; top: 50%; width: 100px; height: 100px; transform: translateY(-50%);
+  background-repeat: no-repeat; background-size: contain; background-position: center;
+}
+:root[data-style="forest"] .balance-card::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 98 C 49 76 45 58 34 42' stroke='%231d4a33' stroke-width='5' fill='none' stroke-linecap='round'/><path d='M39 50 C 18 45 13 28 21 16 C 37 21 45 35 39 50 Z' fill='%237fd1a6'/><path d='M46 64 C 65 61 78 47 75 30 C 58 33 46 47 46 64 Z' fill='%234fae7f'/><path d='M36 38 C 30 24 36 10 50 5 C 58 19 50 33 36 38 Z' fill='%23a6e3c3'/><circle cx='76' cy='76' r='8' fill='%23c8302c'/><circle cx='88' cy='62' r='6' fill='%23c8302c'/></svg>");
+}
+:root[data-style="forest"] .hero:not(.hero-empty)::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M14 96 C 22 66 48 50 82 44' stroke='%232f6b4c' stroke-width='5' fill='none' stroke-linecap='round'/><path d='M42 66 C 34 50 42 34 60 28 C 64 46 56 60 42 66 Z' fill='%232f6b4c'/><circle cx='82' cy='34' r='10' fill='%23ff7a68'/><circle cx='66' cy='52' r='7' fill='%23ff7a68'/></svg>");
+}
+:root[data-style="garden"] .balance-card::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><ellipse cx='50' cy='55' rx='38' ry='40' fill='%23ff9f43'/><path d='M50 15 C 42 42 42 70 50 95' stroke='%233b5bff' stroke-width='6' fill='none'/><path d='M31 20 C 20 45 20 70 31 92' stroke='%233b5bff' stroke-width='5' fill='none'/><path d='M69 20 C 80 45 80 70 69 92' stroke='%233b5bff' stroke-width='5' fill='none'/><path d='M46 16 C 47 6 56 3 62 8' stroke='%232335b8' stroke-width='6' fill='none' stroke-linecap='round'/></svg>");
+}
+:root[data-style="garden"] .hero:not(.hero-empty)::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M4 52 C 26 28 74 28 96 52 C 74 74 26 74 4 52 Z' fill='%23b6e35a'/><circle cx='30' cy='52' r='9' fill='%237fbf3a'/><circle cx='50' cy='52' r='9' fill='%237fbf3a'/><circle cx='70' cy='52' r='9' fill='%237fbf3a'/></svg>");
+}
+
+/* Кнопка «+» */
+:root[data-style="forest"] #fab { box-shadow: 0 10px 26px rgba(255, 122, 104, 0.35); }
+:root[data-style="garden"][data-theme="dark"] #fab { background: radial-gradient(circle at 30% 30%, #ffe27a, #ff8a2b); box-shadow: 0 10px 26px rgba(255, 138, 43, 0.4); }
+:root[data-style="garden"][data-theme="light"] #fab { box-shadow: 0 10px 26px rgba(59, 91, 255, 0.35); }
+
+/* Переключатель оформления в настройках */
+.theme-label { font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
+.theme-label + .segmented { margin-bottom: 0; }
+.style-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.style-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px;
+  border-radius: 14px; background: var(--chip); border: 2px solid transparent; font-size: 14px; font-weight: 600;
+}
+.style-opt.active { border-color: var(--accent); }
+.style-swatch { display: flex; }
+.style-swatch i { width: 22px; height: 22px; border-radius: 11px; border: 2px solid var(--card); margin-left: -6px; }
+.style-swatch i:first-child { margin-left: 0; }
+#theme-modes button { font-size: 13px; padding: 7px 4px; }
