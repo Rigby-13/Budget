@@ -47,10 +47,19 @@ const SLIDES = [
     note: 'Во вкладке «Долги» — кто кому сколько должен.',
   },
   {
+    emoji: '📥',
+    important: true,
+    title: 'Импорт выписки из банка',
+    text: 'Не обязательно вводить всё вручную. Выгрузите в приложении банка <b>выписку за месяц</b> в формате <b>Excel или CSV</b> и загрузите её: <b>Настройки → «Импорт выписки»</b>.',
+    mock: `<div class="g-mock small">📄 выписка_октябрь.xlsx<br>Операций: <b>124</b> · расходы <b>45 300 ₽</b><br><span class="muted">категории подобраны, повторы пропущены</span></div>`,
+    note: 'Категории подберутся сами, уже внесённые траты не задвоятся.',
+  },
+  {
     emoji: '🛟',
     title: 'Чтобы ничего не потерять',
     text: 'Время от времени сохраняйте копию: <b>Настройки → «Сохранить копию в файл»</b>. Если удалить приложение, данные удалятся вместе с ним.',
-    note: 'Хотите попробовать без риска? Включите «Тестовый режим» в настройках — там отдельные данные и можно перематывать дни.',
+    note: 'Попробовать без риска можно в «Тестовом режиме» (Настройки).',
+    alert: 'Рекомендуется добавить выписку из банка за месяц, чтобы не вводить всё вручную.',
     last: true,
   },
 ];
@@ -66,13 +75,15 @@ function isDone() {
 
 function render() {
   $('guide-track').innerHTML = SLIDES.map((s) => `
-    <section class="g-slide">
+    <section class="g-slide"><div class="g-inner">
+      ${s.important ? '<div class="g-badge">❗ ВАЖНО</div>' : ''}
       <div class="g-emoji">${s.emoji}</div>
       <h2>${s.title}</h2>
       <p class="g-text">${s.text}</p>
       ${s.mock || ''}
       ${s.note ? `<p class="g-note">${s.note}</p>` : ''}
-    </section>`).join('');
+      ${s.alert ? `<div class="g-alert">❗ ${s.alert}</div>` : ''}
+    </div></section>`).join('');
   $('guide-dots').innerHTML = SLIDES.map((_, i) => `<i data-i="${i}"></i>`).join('');
   update();
 }
@@ -82,6 +93,7 @@ function update() {
   for (const d of $('guide-dots').children) d.classList.toggle('active', Number(d.dataset.i) === index);
   $('guide-next').textContent = last ? 'Начать' : 'Далее';
   $('guide-wallet').hidden = !last;
+  $('guide-import').hidden = !last;
   $('guide-skip').style.visibility = last ? 'hidden' : 'visible';
 }
 
@@ -119,6 +131,12 @@ export function initGuide() {
   });
   $('guide-skip').addEventListener('click', closeGuide);
   $('guide-wallet').addEventListener('click', () => { closeGuide(); openWalletSheet(); });
+  // «Загрузить выписку» — сразу открываем выбор файла
+  $('guide-import').addEventListener('click', () => {
+    closeGuide();
+    document.querySelector('.tab[data-view=settings]').click();
+    $('imp-file-input').click();
+  });
   $('guide-dots').addEventListener('click', (e) => {
     const d = e.target.closest('[data-i]');
     if (d) goTo(Number(d.dataset.i));

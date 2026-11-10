@@ -21,6 +21,7 @@ import { initTestMode } from './testmode.js';
 import { initSavings } from './savings.js';
 import { initWallet, renderBalance } from './wallet.js';
 import { initGuide } from './guide.js';
+import { initImport } from './importer.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
 const DEFAULT_CATEGORIES = [
@@ -70,6 +71,7 @@ async function init() {
   initTemplatesSettings();
   initSavings();
   initWallet();
+  initImport();
   initGuide();
   initTestMode();
   await renderExpenses();

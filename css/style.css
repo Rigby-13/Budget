@@ -738,3 +738,63 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 .date-bar-add { background: var(--accent); color: #fff; }
 .date-bar-btn:active, .date-bar-add:active { opacity: 0.7; }
 .day-group.flash .day-list { box-shadow: 0 0 0 2px var(--accent); transition: box-shadow 0.3s; }
+
+/* =====================================================================
+   6.7: импорт выписки
+   ===================================================================== */
+.imp-card .small-link { padding: 4px 0; }
+.imp-help ol { padding-left: 20px; margin: 8px 0; line-height: 1.5; }
+.imp-months { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px; scrollbar-width: none; }
+.imp-months::-webkit-scrollbar { display: none; }
+.imp-months button {
+  flex: none; height: 34px; padding: 0 14px; border-radius: 17px; background: var(--card);
+  font-size: 14px; border: 2px solid transparent; white-space: nowrap;
+}
+.imp-months button.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.imp-summary { margin-bottom: 10px; line-height: 1.6; }
+.imp-details { margin-bottom: 10px; font-size: 14px; }
+.imp-details summary { color: var(--accent); cursor: pointer; padding: 6px 0; }
+.imp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.imp-col { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.imp-col select, .imp-cat {
+  font: inherit; font-size: 15px; color: var(--text); background: var(--chip);
+  border: 0; border-radius: 8px; padding: 8px; width: 100%; min-width: 0;
+  -webkit-appearance: none; appearance: none;
+}
+.imp-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.imp-list { background: var(--card); border-radius: 14px; overflow: hidden; }
+.imp-row { display: flex; gap: 10px; padding: 10px 12px; align-items: flex-start; }
+.imp-row + .imp-row { border-top: 0.5px solid var(--line); }
+.imp-row.off .imp-main { opacity: 0.45; }
+.imp-check { width: 22px; height: 22px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+.imp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.imp-top { display: flex; justify-content: space-between; gap: 8px; }
+.imp-date { color: var(--muted); font-size: 13px; }
+.imp-desc { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-note { font-size: 12px; color: var(--warn); }
+.imp-cat { font-size: 14px; padding: 6px 8px; }
+
+/* Гайд: «важное» красным */
+.g-badge {
+  background: var(--danger); color: #fff; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;
+  padding: 4px 12px; border-radius: 12px; margin-bottom: 14px;
+}
+.g-alert {
+  margin-top: 16px; width: 100%; max-width: 340px; text-align: left;
+  background: rgba(255, 59, 48, 0.12); color: var(--danger); border: 1.5px solid var(--danger);
+  border-radius: 14px; padding: 12px 14px; font-size: 15px; font-weight: 600; line-height: 1.4;
+}
+.import-btn { background: var(--danger); color: #fff; margin-top: 10px; border-radius: 12px; padding: 12px; font-weight: 600; min-height: 46px; display: block; width: 100%; }
+.import-btn:active { opacity: 0.8; }
+/* Гайд: содержимое прокручивается, если не влезает (и не обрезается сверху) */
+.g-slide { justify-content: flex-start; padding: 8px 24px; }
+.g-inner { margin: auto 0; display: flex; flex-direction: column; align-items: center; width: 100%; }
+.g-emoji { font-size: 60px; margin-bottom: 12px; }
+.g-slide h2 { font-size: 24px; margin-bottom: 10px; }
+.g-text { font-size: 16px; margin-bottom: 12px; }
+.g-badge { margin-bottom: 10px; }
+.g-alert { margin-top: 12px; }
+.g-link { display: block; width: 100%; text-align: center; font-size: 15px; padding: 10px 0 0; min-width: 0; }
+.import-btn.full { margin-top: 8px; }
+#imp-all { white-space: nowrap; flex: none; }
+.g-bottom .g-link { text-align: center; }

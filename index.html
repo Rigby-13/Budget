@@ -196,6 +196,29 @@
         <span>📖 Как пользоваться</span><span class="muted">›</span>
       </button>
 
+      <div class="section-title">Импорт выписки из банка</div>
+      <div class="card imp-card" id="imp-card">
+        <p class="small" style="margin-top:0">Выгрузите выписку за месяц в приложении банка и загрузите файл сюда —
+          траты добавятся сами, категории подберутся автоматически, повторы будут пропущены.</p>
+        <label class="primary-btn full file-btn">
+          📥 Загрузить выписку (CSV или Excel)
+          <input id="imp-file-input" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+        </label>
+        <p class="small muted" id="imp-last"></p>
+        <button type="button" class="link-btn small-link" id="imp-help-btn">Как выгрузить выписку из банка ›</button>
+        <div class="imp-help small" id="imp-help" hidden>
+          <ol>
+            <li>В приложении банка откройте карту или счёт → <b>«Выписка»</b> (иногда «Справки и выписки»).</li>
+            <li>Выберите период — например, прошлый месяц.</li>
+            <li>Формат — <b>Excel (.xlsx)</b> или <b>CSV</b>. PDF не подойдёт.</li>
+            <li>«Поделиться» → <b>«Сохранить в Файлы»</b>.</li>
+            <li>Здесь нажмите «Загрузить выписку» и выберите этот файл.</li>
+          </ol>
+          <p class="muted">Названия пунктов в разных банках отличаются. Если банк даёт выписку только в PDF —
+            попробуйте веб-версию банка на компьютере, там чаще есть Excel или CSV.</p>
+        </div>
+      </div>
+
       <div class="section-title">Категории</div>
       <button type="button" class="plain-btn row-btn" id="settings-cats">
         <span>🏷️ Категории расходов и доходов</span><span class="muted">›</span>
@@ -226,7 +249,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.6.2</p>
+      <p class="small muted center">Версия 6.7</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -485,6 +508,29 @@
     </div>
   </form>
 
+  <!-- ============ ПАНЕЛЬ: ИМПОРТ ВЫПИСКИ ============ -->
+  <div id="imp-sheet" class="sheet">
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <b>Импорт выписки</b>
+      <button type="button" class="link-btn bold" id="imp-go">Импорт</button>
+    </div>
+    <div class="sheet-body">
+      <p class="small muted center" id="imp-file" style="margin-top:0"></p>
+      <div class="imp-months" id="imp-months"></div>
+      <div class="card small imp-summary" id="imp-summary"></div>
+      <details class="imp-details">
+        <summary>Колонки определены автоматически — изменить</summary>
+        <div class="imp-cols" id="imp-cols"></div>
+      </details>
+      <div class="imp-bar">
+        <span class="small muted">Проверьте категории — приложение запомнит ваш выбор</span>
+        <button type="button" class="link-btn small-link" id="imp-all">Все / ничего</button>
+      </div>
+      <div class="imp-list" id="imp-list"></div>
+    </div>
+  </div>
+
   <!-- Меню действий снизу экрана -->
   <div id="action-sheet" class="sheet action-sheet"></div>
 
@@ -497,7 +543,8 @@
     <div class="g-bottom">
       <div class="g-dots" id="guide-dots"></div>
       <button type="button" class="primary-btn full" id="guide-next">Далее</button>
-      <button type="button" class="secondary-btn full" id="guide-wallet" hidden>Указать мои деньги</button>
+      <button type="button" class="import-btn full" id="guide-import" hidden>📥 Загрузить выписку</button>
+      <button type="button" class="link-btn g-link" id="guide-wallet" hidden>Указать мои деньги</button>
     </div>
   </div>
 
