@@ -892,3 +892,13 @@ html, body { height: 100%; overflow: hidden; }
 .emoji-preview { display: grid; border: 0; cursor: pointer; margin-bottom: 6px; }
 .emoji-preview:active { transform: scale(0.95); }
 .emoji-hint { margin: 0 0 14px; }
+
+/* =====================================================================
+   6.9.3: без приближения экрана при вводе
+   Safari на iPhone приближает страницу, если шрифт в поле меньше 16px.
+   ===================================================================== */
+.field input.emoji-input,
+.imp-col select, .imp-cat, .unrec-select { font-size: 16px; }
+/* Без приближения двойным тапом */
+html, body { touch-action: manipulation; }
+.month-pick input, .chip-date input, .test-date input { font-size: 16px; }
