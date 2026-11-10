@@ -26,7 +26,7 @@
   <main id="view-expenses" class="view active">
     <header class="topbar">
       <button class="icon-btn settings-btn" aria-label="Настройки и резервная копия">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
       <div class="month-switch">
         <button class="icon-btn" id="prev-month" aria-label="Предыдущий месяц">‹</button>
@@ -45,13 +45,72 @@
       </div>
     </section>
 
+    <div id="limit-alerts"></div>
     <div id="tx-list"></div>
   </main>
 
   <!-- ===== Остальные вкладки — появятся на следующих этапах ===== -->
+  <!-- ===================== ВКЛАДКА «СТАТИСТИКА» ===================== -->
   <main id="view-stats" class="view">
     <header class="topbar"><h1>Статистика</h1></header>
-    <div class="empty">Скоро здесь будет статистика 📊</div>
+
+    <div class="segmented wide" id="stats-mode">
+      <button type="button" data-mode="week">Неделя</button>
+      <button type="button" data-mode="month" class="active">Месяц</button>
+      <button type="button" data-mode="year">Год</button>
+      <button type="button" data-mode="custom">Период</button>
+    </div>
+
+    <div class="period-nav" id="stats-nav">
+      <button class="icon-btn" id="stats-prev" aria-label="Назад">‹</button>
+      <h2 id="stats-title">—</h2>
+      <button class="icon-btn" id="stats-next" aria-label="Вперёд">›</button>
+    </div>
+    <div class="field-row" id="stats-custom" hidden>
+      <label class="field"><span>С</span><input id="stats-from" type="date"></label>
+      <label class="field"><span>По</span><input id="stats-to" type="date"></label>
+    </div>
+
+    <!-- Итоги -->
+    <section class="card stat-grid">
+      <div><span class="muted">Расходы</span><b id="st-expense">0 ₽</b></div>
+      <div><span class="muted">Доходы</span><b id="st-income" class="income">0 ₽</b></div>
+      <div><span class="muted">Баланс</span><b id="st-balance">0 ₽</b></div>
+      <div><span class="muted">В среднем в день</span><b id="st-avg">—</b></div>
+    </section>
+
+    <!-- Разбивка по категориям -->
+    <section class="card chart-card">
+      <div class="card-head">
+        <h3>По категориям</h3>
+        <div class="segmented small-seg" id="st-breakdown-type">
+          <button type="button" data-type="expense" class="active">Расходы</button>
+          <button type="button" data-type="income">Доходы</button>
+        </div>
+      </div>
+      <div class="donut" id="st-donut"></div>
+      <div id="st-legend"></div>
+    </section>
+
+    <!-- Динамика по месяцам -->
+    <section class="card chart-card">
+      <div class="card-head">
+        <h3>По месяцам</h3>
+        <div class="legend-inline">
+          <span><i class="dot" style="background:var(--series-expense)"></i>Расходы</span>
+          <span><i class="dot" style="background:var(--series-income)"></i>Доходы</span>
+        </div>
+      </div>
+      <div class="bars" id="st-monthly"></div>
+      <div class="monthly-caption" id="st-monthly-caption"></div>
+    </section>
+
+    <!-- Лимиты -->
+    <section class="card chart-card">
+      <div class="card-head"><h3 id="st-limits-title">Лимиты</h3></div>
+      <div id="st-limits"></div>
+      <button type="button" class="secondary-btn full" id="st-limits-edit">Настроить лимиты</button>
+    </section>
   </main>
   <!-- ===================== ВКЛАДКА «ДОЛГИ» ===================== -->
   <main id="view-debts" class="view">
@@ -227,7 +286,7 @@
           <input id="backup-file" type="file" accept="application/json,.json">
         </label>
       </div>
-      <p class="small muted center">Версия 4.1</p>
+      <p class="small muted center">Версия 5</p>
     </div>
   </div>
 
@@ -259,6 +318,10 @@
       <label class="field">
         <span>Название</span>
         <input id="cat-name" type="text" placeholder="Например, Кафе" maxlength="30" enterkeyhint="done">
+      </label>
+      <label class="field" id="cat-limit-field">
+        <span>Лимит в месяц, ₽ (необязательно)</span>
+        <input id="cat-limit" type="text" inputmode="decimal" placeholder="Без лимита">
       </label>
       <label class="field">
         <span>Свой эмодзи (впишите с клавиатуры) или выберите ниже</span>

@@ -260,7 +260,7 @@ input { font: inherit; color: inherit; }
 
 .month-switch { display: flex; align-items: center; flex: 1; justify-content: center; }
 .month-switch h1 { flex: none; min-width: 150px; }
-.settings-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.settings-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
 .settings-btn { display: grid; place-items: center; }
 
 .summary-row b.big { font-size: 24px; font-weight: 700; }
@@ -361,3 +361,93 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 }
 .emoji-btn.active { border-color: var(--accent); }
 .center { text-align: center; }
+
+/* =====================================================================
+   Этап 4: статистика
+   ===================================================================== */
+
+/* Цвета диаграмм: проверенная палитра, отдельно для светлой и тёмной темы */
+:root {
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100;
+  --c5: #e87ba4; --c6: #008300; --c7: #6250d6; --c8: #e34948;
+  --c-other: #a3a29c;
+  --series-expense: #2a78d6;
+  --series-income: #1baf7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+    --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+    --c-other: #6b6a65;
+    --series-expense: #3987e5;
+    --series-income: #199e70;
+  }
+}
+
+.negative { color: var(--danger); }
+
+#stats-mode button { padding: 7px 4px; }
+.period-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.period-nav h2 { margin: 0; font-size: 18px; font-weight: 600; text-align: center; flex: 1; }
+
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; margin-bottom: 16px; }
+.stat-grid > div { display: flex; flex-direction: column; gap: 2px; font-size: 14px; min-width: 0; }
+.stat-grid b { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.chart-card { margin-bottom: 16px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.card-head h3 { margin: 0; font-size: 17px; }
+.small-seg button { padding: 5px 10px; font-size: 13px; }
+
+.donut { display: flex; justify-content: center; }
+.donut svg { width: 190px; height: 190px; margin-bottom: 8px; }
+.donut-total { font-size: 19px; font-weight: 700; fill: var(--text); }
+.donut-label { font-size: 12px; fill: var(--muted); }
+
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legend-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0; border-top: 0.5px solid var(--line); font-size: 15px;
+}
+.legend-row:first-child { border-top: 0; }
+.legend-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legend-pct { color: var(--muted); font-size: 14px; min-width: 36px; text-align: right; }
+.legend-sum { font-weight: 600; white-space: nowrap; min-width: 84px; text-align: right; }
+
+.legend-inline { display: flex; gap: 12px; font-size: 13px; color: var(--muted); }
+.legend-inline span, .caption-row span { display: inline-flex; align-items: center; gap: 6px; }
+
+.bars svg { width: 100%; height: auto; display: block; }
+.bars .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.bars .baseline { stroke: var(--line); stroke-width: 1; }
+.bars .axis-label { font-size: 11px; fill: var(--muted); }
+.bars .axis-label.sel { fill: var(--text); font-weight: 600; }
+.bars .sel-bg { fill: var(--chip); }
+.bars .hit { cursor: pointer; }
+
+.monthly-caption { margin-top: 10px; font-size: 15px; }
+.monthly-caption > b { display: block; margin-bottom: 4px; }
+.caption-row { display: flex; justify-content: space-between; padding: 3px 0; }
+
+.limit-row { margin-bottom: 14px; }
+.limit-head { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
+.limit-bar { margin: 6px 0 4px; }
+.limit-bar i { background: var(--accent); }
+.limit-bar.warn i { background: var(--warn); }
+.limit-bar.over i { background: var(--danger); }
+.status { font-size: 13px; color: var(--muted); }
+.status.warn { color: var(--warn); font-weight: 500; }
+.status.over { color: var(--danger); font-weight: 500; }
+
+/* Предупреждения о лимитах на вкладке «Траты» */
+.limit-alert {
+  border-radius: 12px; padding: 10px 14px; margin: -8px 0 12px;
+  font-size: 14px; background: var(--card); border-left: 4px solid var(--warn);
+}
+.limit-alert + .limit-alert { margin-top: 0; }
+.limit-alert.over { border-left-color: var(--danger); }
+
+.cat-row-name small { display: block; font-size: 12px; color: var(--muted); }
+
+/* Атрибут hidden всегда прячет элемент, даже если у него задан display */
+[hidden] { display: none !important; }

@@ -102,3 +102,30 @@ export function plural(n, one, few, many) {
   if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
   return many;
 }
+
+const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+export { MONTHS_SHORT, MONTHS_GEN };
+
+/** Компактная запись суммы: 1 250 000 копеек → "12,5 тыс. ₽" */
+const compactFmt = new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 });
+export function formatMoneyShort(kopecks) {
+  return compactFmt.format(kopecks / 100) + ' ₽';
+}
+
+/** Понедельник недели, в которую попадает дата. */
+export function startOfWeek(d) {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+  const shift = (r.getDay() + 6) % 7; // пн=0 … вс=6
+  r.setDate(r.getDate() - shift);
+  return r;
+}
+
+/** "3 – 9 ноября" или "28 октября – 3 ноября" */
+export function rangeLabel(fromISO, toISO) {
+  const a = fromISODate(fromISO), b = fromISODate(toISO);
+  if (fromISO === toISO) return shortDate(fromISO);
+  if (a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()) {
+    return `${a.getDate()} – ${shortDate(toISO)}`;
+  }
+  return `${shortDate(fromISO)} – ${shortDate(toISO)}`;
+}

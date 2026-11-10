@@ -72,10 +72,10 @@ export function shake(el) {
 
 let toastTimer;
 /** Всплывающее сообщение внизу экрана. */
-export function toast(text) {
+export function toast(text, ms = 2000) {
   const t = $('toast');
   t.textContent = text;
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
 }
