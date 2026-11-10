@@ -44,6 +44,7 @@ const state = {
   formCategoryId: null,      // выбранная категория в форме
   view: 'expenses',          // текущая вкладка
   dailyIds: [],              // категории с дневным лимитом — первые в «+»
+  pickedDate: null,          // выбранный день (для записей задним числом) или null
 };
 
 // =====================================================================
@@ -100,9 +101,7 @@ function categoryById(id) {
 // =====================================================================
 async function renderExpenses() {
   $('month-title').textContent = `${MONTHS[state.month]} ${state.year}`;
-  $('month-pick').value = viewKey();
-  const n = now();
-  $('to-today').hidden = state.year === n.getFullYear() && state.month === n.getMonth();
+  renderDateBar();
   await renderBalance();
 
   const { from, to } = monthRange(state.year, state.month);
@@ -141,7 +140,7 @@ async function renderExpenses() {
   let html = '';
   for (const [date, txs] of groups) {
     const dayExpense = txs.filter((t) => t.type !== 'income').reduce((s, t) => s + t.amount, 0);
-    html += `<section class="day-group">
+    html += `<section class="day-group" data-date="${date}">
       <div class="day-head"><span>${dayLabel(date)}</span><span>${dayExpense ? '−' + formatMoney(dayExpense) : ''}</span></div>
       <div class="day-list">`;
     for (const t of txs) {
@@ -182,7 +181,37 @@ function renderDetails(expense) {
   $('details-hint').textContent = open ? '' : `расходы ${formatMoney(expense)}`;
 }
 
+/**
+ * Строка под заголовком:
+ *   «＋ Запись на 3 ноября» — если выбран прошлый день;
+ *   «↩ К сегодняшнему дню» — если открыт другой месяц или выбран день.
+ */
+function renderDateBar() {
+  const n = now();
+  const isCurrent = state.year === n.getFullYear() && state.month === n.getMonth();
+  const picked = state.pickedDate;
+  $('month-pick').value = picked || (isCurrent ? todayISO() : `${viewKey()}-01`);
+  $('picked-add').hidden = !picked;
+  if (picked) $('picked-add').textContent = `＋ Запись на ${dayLabel(picked).toLowerCase()}`;
+  $('to-today').hidden = isCurrent && !picked;
+  $('to-today').textContent = picked ? '↩ Сегодня' : '↩ К сегодняшнему дню';
+  $('date-bar').hidden = isCurrent && !picked;
+}
+
+/** Выбрать день: переходим в его месяц, «+» будет записывать на этот день. */
+function pickDate(iso) {
+  const [y, m] = iso.split('-').map(Number);
+  state.year = y; state.month = m - 1;
+  state.pickedDate = iso === todayISO() ? null : iso;
+  renderExpenses().then(() => {
+    // Прокручиваем к этому дню в списке, если записи есть
+    const g = document.querySelector(`.day-group[data-date="${iso}"]`);
+    if (g) { g.scrollIntoView({ behavior: 'smooth', block: 'center' }); g.classList.add('flash'); setTimeout(() => g.classList.remove('flash'), 1200); }
+  });
+}
+
 function shiftMonth(delta) {
+  state.pickedDate = null;
   const d = new Date(state.year, state.month + delta, 1);
   state.year = d.getFullYear();
   state.month = d.getMonth();
@@ -202,7 +231,8 @@ function openTxSheet(tx = null, limitFor = null, categoryId = null, limitMonth =
   state.formCategoryId = tx ? tx.categoryId : categoryId || lastCategory(state.formType);
 
   $('tx-amount').value = tx ? moneyToInput(tx.amount) : '';
-  $('tx-date').value = tx ? tx.date : todayISO();
+  // Новая запись — на выбранный день (если выбран) или на сегодня
+  $('tx-date').value = tx ? tx.date : state.pickedDate || todayISO();
   $('tx-comment').value = tx ? tx.comment || '' : '';
   $('tx-delete').hidden = !tx;
   // Дату и комментарий показываем сразу, только если они уже заполнены
@@ -439,17 +469,17 @@ function bindEvents() {
   });
   $('tx-date').addEventListener('change', renderDateChips);
 
-  // Выбор месяца по тапу на название и кнопка «Сегодня»
+  // Выбор дня по тапу на название; «Запись на …»; возврат к сегодняшнему дню
   $('month-pick').addEventListener('change', (e) => {
-    if (!e.target.value) return;
-    const [y, m] = e.target.value.split('-').map(Number);
-    state.year = y; state.month = m - 1;
-    renderExpenses();
+    if (e.target.value) pickDate(e.target.value);
   });
+  $('picked-add').addEventListener('click', () => openTxSheet());
   $('to-today').addEventListener('click', () => {
     const n = now();
+    state.pickedDate = null;
     state.year = n.getFullYear(); state.month = n.getMonth();
     renderExpenses();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   // Деньги изменились — обновляем баланс

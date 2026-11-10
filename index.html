@@ -28,15 +28,21 @@
       <span class="topbar-side" aria-hidden="true"></span>
       <div class="month-switch">
         <button class="icon-btn" id="prev-month" aria-label="Предыдущий месяц">‹</button>
-        <!-- Тап по названию — выбрать любой месяц -->
+        <!-- Тап по названию — выбрать любой день (например, чтобы записать прошлую трату) -->
         <label class="month-pick">
           <h1 id="month-title">Месяц</h1>
-          <input id="month-pick" type="month" aria-label="Выбрать месяц">
+          <input id="month-pick" type="date" aria-label="Выбрать день">
         </label>
         <button class="icon-btn" id="next-month" aria-label="Следующий месяц">›</button>
       </div>
-      <span class="topbar-side right"><button type="button" class="today-pill" id="to-today" hidden>Сегодня</button></span>
+      <span class="topbar-side" aria-hidden="true"></span>
     </header>
+
+    <!-- Выбранный день и возврат к сегодняшнему -->
+    <div class="date-bar" id="date-bar" hidden>
+      <button type="button" class="date-bar-add" id="picked-add" hidden></button>
+      <button type="button" class="date-bar-btn" id="to-today">↩ К сегодняшнему дню</button>
+    </div>
 
     <!-- Сколько денег сейчас -->
     <button type="button" class="card balance-card" id="balance-card"></button>
@@ -220,7 +226,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.6.1</p>
+      <p class="small muted center">Версия 6.6.2</p>
   </main>
 
   <!-- Большая кнопка «+» -->
