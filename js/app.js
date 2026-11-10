@@ -5,7 +5,7 @@
 import * as db from './db.js';
 import {
   formatMoney, parseMoney, moneyToInput, MONTHS, todayISO, now,
-  monthRange, dayLabel, escapeHTML, addDays,
+  monthRange, dayLabel, escapeHTML, addDays, shortDate, fromISODate,
 } from './utils.js';
 import { $, focusField, openSheet, closeSheet, closeSheets, closeTopSheet, isOpen, shake, toast } from './ui.js';
 import { initCategories, openCategories } from './categories.js';
@@ -22,6 +22,7 @@ import { initSavings } from './savings.js';
 import { initWallet, renderBalance } from './wallet.js';
 import { initGuide } from './guide.js';
 import { initImport } from './importer.js';
+import { initReset, renderReset } from './reset.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
 const DEFAULT_CATEGORIES = [
@@ -72,6 +73,7 @@ async function init() {
   initSavings();
   initWallet();
   initImport();
+  initReset();
   initGuide();
   initTestMode();
   await renderExpenses();
@@ -198,6 +200,16 @@ function renderDateBar() {
   $('to-today').hidden = isCurrent && !picked;
   $('to-today').textContent = picked ? '↩ Сегодня' : '↩ К сегодняшнему дню';
   $('date-bar').hidden = isCurrent && !picked;
+  // Строка с датой под названием месяца — чтобы было понятно, где вы
+  const today = todayISO();
+  $('month-sub').textContent = picked
+    ? `выбран ${dayLabel(picked).toLowerCase()}`
+    : isCurrent ? `${weekdayLong(today)}, ${shortDate(today)} — сегодня`
+      : `сегодня ${shortDate(today)}`;
+}
+
+function weekdayLong(iso) {
+  return ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'][fromISODate(iso).getDay()];
 }
 
 /** Выбрать день: переходим в его месяц, «+» будет записывать на этот день. */
@@ -394,7 +406,7 @@ function switchView(name) {
   $('fab').classList.toggle('hidden', !['expenses', 'debts'].includes(name));
   if (name === 'debts') renderDebts();
   if (name === 'stats') renderStats();
-  if (name === 'settings') { renderSettings(); renderTemplatesSettings(); }
+  if (name === 'settings') { renderSettings(); renderTemplatesSettings(); renderReset(); }
   window.scrollTo(0, 0);
 }
 

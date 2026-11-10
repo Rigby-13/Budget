@@ -809,3 +809,25 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
   font: inherit; font-size: 15px; color: var(--text); background: var(--chip);
   border: 0; border-radius: 8px; padding: 9px; width: 100%; -webkit-appearance: none; appearance: none;
 }
+
+/* 6.9: дата под названием месяца, удаление записей */
+.month-pick { display: flex; flex-direction: column; align-items: center; }
+.month-sub { font-size: 13px; color: var(--muted); margin-top: 1px; white-space: nowrap; }
+.topbar { min-height: 56px; }
+
+.danger-title { color: var(--danger); }
+.reset-card { border: 1.5px solid var(--danger); }
+.reset-warn { color: var(--danger); font-weight: 600; font-size: 15px; line-height: 1.4; }
+.reset-card .section-title { margin-bottom: 6px; }
+.reset-month { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 0.5px solid var(--line); font-size: 15px; }
+.reset-month:first-child { border-top: 0; }
+.reset-month input { width: 22px; height: 22px; accent-color: var(--danger); flex: none; margin: 0; }
+.reset-month-name { flex: 1; }
+.danger-outline, .danger-fill {
+  display: block; width: 100%; min-height: 46px; border-radius: 12px; font-weight: 600; margin-top: 10px;
+}
+.danger-outline { color: var(--danger); background: var(--chip); }
+.danger-fill { color: #fff; background: var(--danger); }
+.danger-outline:disabled { color: var(--muted); opacity: 0.7; }
+.danger-outline:active, .danger-fill:active { opacity: 0.7; }
+.as-danger { color: var(--danger); font-weight: 600; font-size: 15px; line-height: 1.4; display: block; padding: 0 6px; }
