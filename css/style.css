@@ -1,0 +1,245 @@
+/* =====================================================================
+   style.css — внешний вид приложения.
+   Цвета заданы переменными (--bg, --text, ...). Для тёмной темы
+   ниже они просто переопределяются — тема берётся из настроек iPhone.
+   ===================================================================== */
+
+:root {
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --text: #1c1c1e;
+  --muted: #8e8e93;
+  --line: #e5e5ea;
+  --accent: #0a84ff;
+  --income: #34c759;
+  --expense: #1c1c1e;
+  --danger: #ff3b30;
+  --chip: #eeeef0;
+  --tabbar: rgba(249, 249, 249, 0.92);
+
+  /* Безопасные отступы айфона: чёлка сверху, полоска снизу */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tabbar-h: 56px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --text: #f2f2f7;
+    --muted: #8e8e93;
+    --line: #2c2c2e;
+    --accent: #0a84ff;
+    --income: #30d158;
+    --expense: #f2f2f7;
+    --danger: #ff453a;
+    --chip: #2c2c2e;
+    --tabbar: rgba(22, 22, 24, 0.92);
+  }
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+input { font: inherit; color: inherit; }
+
+.muted { color: var(--muted); }
+.income { color: var(--income); }
+
+/* ---------- Вкладки (экраны) ---------- */
+.view {
+  display: none;
+  min-height: 100vh;
+  padding: calc(var(--safe-top) + 8px) 16px calc(var(--tabbar-h) + var(--safe-bottom) + 96px);
+}
+.view.active { display: block; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; min-height: 48px; margin-bottom: 8px;
+}
+.topbar h1 { font-size: 22px; margin: 0; font-weight: 700; flex: 1; text-align: center; }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: 22px;
+  font-size: 28px; line-height: 1; color: var(--accent);
+}
+.icon-btn:active { background: var(--chip); }
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+/* ---------- Итоги месяца ---------- */
+.summary { margin-bottom: 20px; }
+.summary-label { color: var(--muted); font-size: 14px; }
+.summary-main { font-size: 34px; font-weight: 700; margin: 2px 0 12px; letter-spacing: -0.5px; }
+.summary-row { display: flex; gap: 16px; }
+.summary-row > div { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.summary-row b { font-size: 17px; }
+
+/* ---------- Список записей ---------- */
+.day-group { margin-bottom: 18px; }
+.day-head {
+  display: flex; justify-content: space-between;
+  font-size: 13px; color: var(--muted); text-transform: uppercase;
+  padding: 0 4px 6px;
+}
+.day-list { background: var(--card); border-radius: 14px; overflow: hidden; }
+.tx {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left;
+  padding: 10px 14px; min-height: 56px;
+}
+.tx + .tx { border-top: 0.5px solid var(--line); }
+.tx:active { background: var(--chip); }
+.tx-emoji {
+  width: 36px; height: 36px; border-radius: 10px; background: var(--chip);
+  display: grid; place-items: center; font-size: 20px; flex: none;
+}
+.tx-main { flex: 1; min-width: 0; }
+.tx-cat { font-weight: 500; }
+.tx-comment { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-amount { font-weight: 600; white-space: nowrap; }
+.tx-amount.income { color: var(--income); }
+
+.empty { text-align: center; color: var(--muted); padding: 48px 16px; line-height: 1.5; }
+
+/* ---------- Большая кнопка «+» ---------- */
+#fab {
+  position: fixed; z-index: 20;
+  right: 20px;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 16px);
+  width: 64px; height: 64px; border-radius: 32px;
+  background: var(--accent); color: #fff;
+  font-size: 36px; font-weight: 300; line-height: 1;
+  box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
+  transition: transform 0.15s;
+}
+#fab:active { transform: scale(0.92); }
+#fab.hidden { display: none; }
+
+/* ---------- Нижняя панель вкладок ---------- */
+.tabbar {
+  position: fixed; z-index: 10; left: 0; right: 0; bottom: 0;
+  display: flex;
+  height: calc(var(--tabbar-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--tabbar);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--line);
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; font-size: 11px; color: var(--muted);
+}
+.tab svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tab.active { color: var(--accent); }
+
+/* ---------- Выезжающая панель (sheet) ---------- */
+.backdrop {
+  position: fixed; inset: 0; z-index: 30;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.backdrop.open { opacity: 1; pointer-events: auto; }
+
+/* Панель прикреплена к верху экрана — так клавиатура её не перекрывает */
+.sheet {
+  position: fixed; z-index: 31; left: 0; right: 0;
+  top: calc(var(--safe-top) + 12px); bottom: 0;
+  background: var(--bg);
+  border-radius: 16px 16px 0 0;
+  display: flex; flex-direction: column;
+  transform: translateY(105%); transition: transform 0.3s cubic-bezier(.2,.8,.2,1);
+}
+.sheet.open { transform: translateY(0); }
+
+.sheet-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; border-bottom: 0.5px solid var(--line);
+}
+.link-btn { color: var(--accent); font-size: 17px; padding: 8px 6px; min-width: 64px; }
+.link-btn:last-child { text-align: right; }
+.link-btn.bold { font-weight: 600; }
+
+.segmented { display: flex; background: var(--chip); border-radius: 9px; padding: 2px; }
+.segmented button { padding: 6px 14px; border-radius: 7px; font-size: 14px; font-weight: 500; }
+.segmented button.active { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+
+.sheet-body {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 16px 16px calc(var(--safe-bottom) + 24px);
+}
+
+.amount-wrap {
+  display: flex; align-items: baseline; justify-content: center; gap: 6px;
+  margin: 4px 0 18px;
+}
+#tx-amount {
+  width: 100%; max-width: 260px;
+  border: 0; outline: 0; background: transparent;
+  font-size: 48px; font-weight: 700; text-align: right; letter-spacing: -1px;
+}
+.currency { font-size: 36px; font-weight: 600; color: var(--muted); }
+
+.cat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin-bottom: 18px;
+}
+.cat-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 4px; border-radius: 12px; background: var(--card);
+  font-size: 12px; border: 2px solid transparent;
+  overflow: hidden;
+}
+.cat-chip .e { font-size: 24px; }
+.cat-chip .n { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-chip.active { border-color: var(--accent); }
+
+.field-row { display: flex; gap: 10px; }
+.field {
+  display: flex; flex-direction: column; gap: 4px; flex: 1;
+  margin-bottom: 12px; font-size: 13px; color: var(--muted);
+}
+.field input {
+  /* 16px+ — иначе Safari приближает экран при вводе */
+  font-size: 17px; color: var(--text);
+  background: var(--card); border: 0; border-radius: 10px;
+  padding: 12px; min-height: 46px; width: 100%;
+  -webkit-appearance: none; appearance: none;
+}
+.field input:focus { outline: 2px solid var(--accent); }
+
+.danger-btn {
+  width: 100%; margin-top: 12px; padding: 14px;
+  border-radius: 12px; background: var(--card); color: var(--danger); font-weight: 500;
+}
+
+/* Поле с ошибкой слегка трясётся */
+.shake { animation: shake 0.3s; }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+/* ---------- Всплывающее сообщение ---------- */
+.toast {
+  position: fixed; z-index: 50; left: 50%;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 96px);
+  transform: translate(-50%, 20px); opacity: 0;
+  background: var(--text); color: var(--bg);
+  padding: 10px 18px; border-radius: 20px; font-size: 15px;
+  transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+  max-width: calc(100% - 32px);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
