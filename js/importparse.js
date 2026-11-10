@@ -5,14 +5,22 @@
 // На выходе — таблица строк (массив массивов текста).
 // =====================================================================
 
-/** Прочитать файл → { rows: string[][], format: 'CSV' | 'Excel' } */
+/**
+ * Прочитать файл →
+ *   таблица: { rows: string[][], format }  (CSV, Excel)
+ *   или сразу операции: { ops, format }    (PDF)
+ */
 export async function readTable(file) {
   const buf = new Uint8Array(await file.arrayBuffer());
   const name = file.name.toLowerCase();
+  // PDF начинается с «%PDF»
+  if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) {
+    const { readPdf } = await import('./importpdf.js');
+    return readPdf(buf);
+  }
   // Zip-архив начинается с «PK»
   if (buf[0] === 0x50 && buf[1] === 0x4b) return { rows: await readXlsx(buf), format: 'Excel' };
   if (name.endsWith('.xls')) throw new Error('Старый формат .xls не поддерживается — сохраните выписку как .xlsx или .csv');
-  if (name.endsWith('.pdf') || (buf[0] === 0x25 && buf[1] === 0x50)) throw new Error('PDF не поддерживается — выберите в банке выгрузку в Excel или CSV');
   return { rows: parseCsv(decodeText(buf)), format: 'CSV' };
 }
 

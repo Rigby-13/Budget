@@ -201,8 +201,8 @@
         <p class="small" style="margin-top:0">Выгрузите выписку за месяц в приложении банка и загрузите файл сюда —
           траты добавятся сами, категории подберутся автоматически, повторы будут пропущены.</p>
         <label class="primary-btn full file-btn">
-          📥 Загрузить выписку (CSV или Excel)
-          <input id="imp-file-input" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          📥 Загрузить выписку (PDF, Excel или CSV)
+          <input id="imp-file-input" type="file" accept=".pdf,.csv,.xlsx,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
         </label>
         <p class="small muted" id="imp-last"></p>
         <button type="button" class="link-btn small-link" id="imp-help-btn">Как выгрузить выписку из банка ›</button>
@@ -210,12 +210,12 @@
           <ol>
             <li>В приложении банка откройте карту или счёт → <b>«Выписка»</b> (иногда «Справки и выписки»).</li>
             <li>Выберите период — например, прошлый месяц.</li>
-            <li>Формат — <b>Excel (.xlsx)</b> или <b>CSV</b>. PDF не подойдёт.</li>
+            <li>Формат — <b>PDF</b>, <b>Excel (.xlsx)</b> или <b>CSV</b>. Сбербанк: обычная PDF-выписка из «Выписки и справки».</li>
             <li>«Поделиться» → <b>«Сохранить в Файлы»</b>.</li>
             <li>Здесь нажмите «Загрузить выписку» и выберите этот файл.</li>
           </ol>
-          <p class="muted">Названия пунктов в разных банках отличаются. Если банк даёт выписку только в PDF —
-            попробуйте веб-версию банка на компьютере, там чаще есть Excel или CSV.</p>
+          <p class="muted">Названия пунктов в разных банках отличаются. PDF Сбербанка распознаётся точно,
+            PDF других банков — в общем виде: проверьте операции перед импортом. Сканы (фото документа) не читаются.</p>
         </div>
       </div>
 
@@ -249,7 +249,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 6.7</p>
+      <p class="small muted center">Версия 6.8</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -519,7 +519,8 @@
       <p class="small muted center" id="imp-file" style="margin-top:0"></p>
       <div class="imp-months" id="imp-months"></div>
       <div class="card small imp-summary" id="imp-summary"></div>
-      <details class="imp-details">
+      <div id="imp-unrec"></div>
+      <details class="imp-details" id="imp-details">
         <summary>Колонки определены автоматически — изменить</summary>
         <div class="imp-cols" id="imp-cols"></div>
       </details>

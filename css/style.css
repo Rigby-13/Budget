@@ -798,3 +798,14 @@ body.test-mode .view { padding-top: calc(var(--safe-top) + 52px); }
 .import-btn.full { margin-top: 8px; }
 #imp-all { white-space: nowrap; flex: none; }
 .g-bottom .g-link { text-align: center; }
+
+/* 6.8: нераспознанные операции */
+.unrec { margin-bottom: 12px; border: 1.5px solid var(--warn); }
+.unrec-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 0.5px solid var(--line); }
+.unrec-label { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
+.unrec-label span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unrec-label small { white-space: nowrap; }
+.unrec-select {
+  font: inherit; font-size: 15px; color: var(--text); background: var(--chip);
+  border: 0; border-radius: 8px; padding: 9px; width: 100%; -webkit-appearance: none; appearance: none;
+}

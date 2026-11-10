@@ -108,11 +108,11 @@ export function toOperations(rows, det) {
 // ---------------------------------------------------------------------
 // Ключевые слова → название нашей категории (по умолчанию)
 const KEYWORDS = [
-  ['Еда', ['супермаркет', 'продукт', 'фастфуд', 'ресторан', 'кафе', 'кофе', 'пятерочк', 'пятёрочк', 'магнит', 'перекрест', 'вкусвилл', 'лента', 'ашан', 'дикси', 'окей', 'metro', 'spar', 'макдон', 'вкусно', 'kfc', 'бургер', 'burger', 'самокат', 'яндекс еда', 'яндекс лавка', 'delivery', 'пекарн', 'шоколадниц', 'додо', 'food']],
-  ['Транспорт', ['транспорт', 'такси', 'taxi', 'яндекс go', 'yandex go', 'uber', 'метро', 'metro moscow', 'мосметро', 'тройка', 'автобус', 'азс', 'топливо', 'бензин', 'лукойл', 'роснефть', 'газпромнефть', 'каршеринг', 'делимобиль', 'ситидрайв', 'ржд', 'аэрофлот', 'парковк']],
+  ['Еда', ['samokat', 'vkusno', 'magnit', 'pyaterochka', 'perekrestok', 'vkusvill', 'mcdonald', 'супермаркет', 'продукт', 'фастфуд', 'ресторан', 'кафе', 'кофе', 'пятерочк', 'пятёрочк', 'магнит', 'перекрест', 'вкусвилл', 'лента', 'ашан', 'дикси', 'окей', 'metro', 'spar', 'макдон', 'вкусно', 'kfc', 'бургер', 'burger', 'самокат', 'яндекс еда', 'яндекс лавка', 'delivery', 'пекарн', 'шоколадниц', 'додо', 'food']],
+  ['Транспорт', ['транспорт', 'такси', 'taxi', 'yandex*taxi', 'яндекс go', 'yandex go', 'uber', 'метро', 'metro moscow', 'мосметро', 'тройка', 'автобус', 'азс', 'топливо', 'бензин', 'лукойл', 'роснефть', 'газпромнефть', 'каршеринг', 'делимобиль', 'ситидрайв', 'ржд', 'аэрофлот', 'парковк']],
   ['Жильё', ['жкх', 'коммунал', 'квартплат', 'аренда', 'электроэнерг', 'мосэнерго', 'водоканал']],
   ['Связь', ['связь', 'мобильн', 'мтс', 'билайн', 'мегафон', 'теле2', 't2', 'интернет', 'ростелеком']],
-  ['Здоровье', ['аптек', 'медицин', 'здоров', 'клиник', 'стоматолог', 'apteka', 'pharm']],
+  ['Здоровье', ['аптек', 'медицин', 'здоров', 'клиник', 'стоматолог', 'apteka', 'apt ', 'pharm', 'invitro', 'инвитро', 'poliklin', 'polikli', 'klinik', 'gemotest', 'гемотест']],
   ['Одежда', ['одежд', 'обув', 'zara', 'uniqlo', 'lamoda', 'спортмастер', 'gloria']],
   ['Развлечения', ['развлеч', 'кино', 'театр', 'концерт', 'игр', 'steam', 'кинопоиск', 'яндекс плюс', 'okko', 'ivi', 'spotify', 'музык']],
   ['Подарки', ['подарк', 'цвет']],
@@ -128,31 +128,46 @@ async function saveRules(map) {
   await db.put('settings', { id: 'importRules', map });
 }
 
-/** Подобрать категорию: прошлые импорты → категория банка совпадает с нашей → ключевые слова → «Другое». */
+/**
+ * Подобрать категорию: прошлые импорты (по описанию, потом по категории банка)
+ * → категория банка совпадает с нашей → ключевые слова → «Другое».
+ * Возвращает { id, recognized } — recognized: false, если ушло в «Другое» по умолчанию.
+ */
 function guessCategory(op, categories, rules) {
   const cats = categories.filter((c) => c.type === op.type && !c.archived);
   const byName = (name) => cats.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  const ok = (id) => id && cats.some((c) => c.id === id);
   const learned = rules[normalize(op.description)];
-  if (learned && cats.some((c) => c.id === learned)) return learned;
+  if (ok(learned)) return { id: learned, recognized: true };
+  const learnedCat = op.bankCategory && rules[bankKey(op)];
+  if (ok(learnedCat)) return { id: learnedCat, recognized: true };
   if (op.bankCategory) {
     const same = byName(op.bankCategory);
-    if (same) return same.id;
+    if (same) return { id: same.id, recognized: true };
   }
   const text = `${op.description} ${op.bankCategory}`.toLowerCase();
   for (const [name, words] of KEYWORDS) {
     if (words.some((w) => text.includes(w))) {
       const c = byName(name);
-      if (c) return c.id;
+      if (c) return { id: c.id, recognized: true };
     }
   }
-  return (byName('Другое') || cats[cats.length - 1] || {}).id || null;
+  return { id: (byName('Другое') || cats[cats.length - 1] || {}).id || null, recognized: false };
 }
+
+/** Ключ правила по категории банка: «cat:expense:перевод сбп». */
+const bankKey = (op) => `cat:${op.type}:${String(op.bankCategory).toLowerCase().trim()}`;
+
+/** Группа для блока «Не распознано»: по категории банка, иначе по описанию. */
+const groupKey = (op) => `${op.type}|${op.bankCategory ? 'c:' + op.bankCategory.toLowerCase() : 'd:' + normalize(op.description).slice(0, 24)}`;
 
 // ---------------------------------------------------------------------
 // Окно импорта
 // ---------------------------------------------------------------------
 const st = {
   fileName: '', format: '', rows: [], det: null,
+  pdfOps: null,     // операции из PDF (тогда колонок нет)
+  leftOther: false, // нажали «Оставить в «Другое»»
   ops: [],          // { ...операция, categoryId, checked, dup }
   month: 'all',     // 'all' или 'ГГГГ-ММ'
   categories: [],
@@ -163,7 +178,13 @@ const importKey = (op) => `${op.date}|${op.type}|${op.amount}|${normalize(op.des
 async function prepare() {
   const rules = await loadRules();
   st.categories = await db.getAll('categories');
-  const ops = toOperations(st.rows, st.det);
+  const ops = st.pdfOps ? st.pdfOps.map((o) => ({ ...o })) : toOperations(st.rows, st.det);
+  for (const o of ops) {
+    if (o.skip === undefined) {
+      const low = `${o.description} ${o.bankCategory}`.toLowerCase();
+      o.skip = OWN_TRANSFER.some((w) => low.includes(w)) ? 'перевод между своими счетами' : null;
+    }
+  }
   if (!ops.length) { st.ops = []; return; }
   const dates = ops.map((o) => o.date).sort();
   const existing = await db.getTransactionsBetween(dates[0], dates[dates.length - 1]);
@@ -172,8 +193,10 @@ async function prepare() {
   st.ops = ops.map((o) => {
     const dup = keys.has(importKey(o)) ? 'уже импортирована'
       : manual.includes(`${o.date}|${o.type}|${o.amount}`) ? 'похоже, уже внесена вручную' : null;
-    return { ...o, categoryId: guessCategory(o, st.categories, rules), dup, checked: !dup && !o.skip };
+    const g = guessCategory(o, st.categories, rules);
+    return { ...o, categoryId: g.id, unrecognized: !g.recognized, dup, checked: !dup && !o.skip };
   });
+  st.leftOther = false;
   // Месяц по умолчанию — все
   st.month = 'all';
 }
@@ -194,7 +217,9 @@ function render() {
   const headers = st.det.headers;
   const opt = (role) => `<option value="">—</option>` + headers.map((h, j) =>
     `<option value="${j}" ${st.det.cols[role] === j ? 'selected' : ''}>${escapeHTML(h || `Колонка ${j + 1}`)}</option>`).join('');
-  $('imp-cols').innerHTML = Object.entries(ROLES).map(([role, def]) => `
+  $('imp-details').hidden = !!st.pdfOps;
+  if (st.pdfOps) $('imp-cols').innerHTML = '';
+  else $('imp-cols').innerHTML = Object.entries(ROLES).map(([role, def]) => `
     <label class="imp-col"><span>${def.label}</span><select data-role="${role}">${opt(role)}</select></label>`).join('');
 
   const ops = visibleOps();
@@ -207,6 +232,7 @@ function render() {
        Расходы <b>${formatMoney(exp)}</b> · доходы <b class="income">${formatMoney(inc)}</b>
        ${dups ? `<br><span class="muted">Уже есть в приложении: ${dups} — они не отмечены</span>` : ''}`
     : '<span class="negative">Не нашёл операций. Проверьте колонки ниже — особенно «Дата» и «Сумма».</span>';
+  renderUnrecognized(ops);
   $('imp-go').textContent = `Импорт (${chosen.length})`;
   $('imp-go').disabled = !chosen.length;
 
@@ -230,13 +256,71 @@ function render() {
   }).join('');
 }
 
+/** Нераспознанные операции, которые ещё не разобрали: группы. */
+function unresolvedGroups(ops) {
+  const groups = new Map();
+  for (const o of ops) {
+    if (!o.unrecognized || o.userSet || !o.checked) continue;
+    const k = groupKey(o);
+    if (!groups.has(k)) groups.set(k, { key: k, type: o.type, label: o.bankCategory || o.description || 'Без описания', ops: [] });
+    groups.get(k).ops.push(o);
+  }
+  return [...groups.values()].sort((a, b) => b.ops.length - a.ops.length);
+}
+
+/** Блок «❓ Не распознано»: привязать группу к категории, создать новую или оставить в «Другое». */
+function renderUnrecognized(ops) {
+  const box = $('imp-unrec');
+  const groups = st.leftOther ? [] : unresolvedGroups(ops);
+  if (!groups.length) { box.innerHTML = ''; return; }
+  const total = groups.reduce((s, g) => s + g.ops.length, 0);
+  const options = (type) => `<option value="">Выберите категорию…</option>` + st.categories
+    .filter((c) => c.type === type && !c.archived).sort((a, b) => a.order - b.order)
+    .map((c) => `<option value="${c.id}">${c.emoji} ${escapeHTML(c.name)}</option>`).join('')
+    + '<option value="__new__">＋ Новая категория…</option>';
+  box.innerHTML = `<section class="card unrec">
+    <div class="unrec-head"><b>❓ Не распознано: ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'операция' : 'операций'}</b></div>
+    <p class="small muted" style="margin:4px 0 8px">Привяжите к категориям — приложение запомнит и в следующий раз распознает само.</p>
+    ${groups.map((g) => `<div class="unrec-row" data-group="${escapeHTML(g.key)}">
+      <div class="unrec-label">
+        <span>${escapeHTML(g.label)} <small class="muted">· ${g.type === 'income' ? 'пополнения' : 'списания'}</small></span>
+        <small class="muted">${g.ops.length} шт. · ${g.type === 'income' ? '+' : '−'}${formatMoney(g.ops.reduce((s, o) => s + o.amount, 0))}</small>
+      </div>
+      <select class="unrec-select">${options(g.type)}</select>
+    </div>`).join('')}
+    <button type="button" class="secondary-btn full" id="unrec-skip">Пропустить — оставить в «Другое»</button>
+  </section>`;
+}
+
+/** Привязать всю группу к категории (и запомнить для категории банка). */
+function assignGroup(key, categoryId) {
+  for (const o of st.ops) {
+    if (groupKey(o) === key) { o.categoryId = categoryId; o.userSet = true; o.groupSet = true; }
+  }
+}
+
+async function createCategory(type) {
+  const name = (prompt('Название новой категории', '') || '').trim().slice(0, 30);
+  if (!name) return null;
+  const existing = st.categories.find((c) => c.type === type && !c.archived && c.name.toLowerCase() === name.toLowerCase());
+  if (existing) return existing.id;
+  const order = Math.max(-1, ...st.categories.filter((c) => c.type === type).map((c) => c.order)) + 1;
+  const cat = { id: db.newId(), type, name, emoji: type === 'income' ? '💰' : '🏷️', order, archived: false };
+  await db.put('categories', cat);
+  st.categories.push(cat);
+  document.dispatchEvent(new Event('categories-changed'));
+  toast(`Категория «${name}» создана — эмодзи можно поменять в настройках`, 3000);
+  return cat.id;
+}
+
 export async function startImport(file) {
   try {
-    const { rows, format } = await readTable(file);
+    const res = await readTable(file);
     st.fileName = file.name;
-    st.format = format;
-    st.rows = rows;
-    st.det = detectColumns(rows);
+    st.format = res.format;
+    st.pdfOps = res.ops || null;
+    st.rows = res.rows || [];
+    st.det = res.rows ? detectColumns(res.rows) : { cols: {}, headers: [], headerIndex: -1 };
     await prepare();
     render();
     openSheet($('imp-sheet'));
@@ -249,6 +333,11 @@ export async function startImport(file) {
 async function doImport() {
   const chosen = visibleOps().filter((o) => o.checked);
   if (!chosen.length) return;
+  // Предупреждение: нераспознанные операции уйдут в «Другое»
+  if (!st.leftOther) {
+    const left = unresolvedGroups(chosen).reduce((s, g) => s + g.ops.length, 0);
+    if (left && !confirm(`${left} нераспознанных операций попадут в категорию «Другое». Их можно будет поменять потом. Импортировать?`)) return;
+  }
   const rules = await loadRules();
   let n = 0;
   for (const o of chosen) {
@@ -258,7 +347,9 @@ async function doImport() {
     });
     // Запоминаем: ваш выбор — всегда, автоматический — только если правила ещё нет
     const key = normalize(o.description);
-    if (key && (o.userSet || !rules[key])) rules[key] = o.categoryId;
+    if (o.groupSet && o.bankCategory) rules[bankKey(o)] = o.categoryId; // вся категория банка
+    else if (key && o.userSet) rules[key] = o.categoryId;
+    else if (key && !rules[key] && !o.unrecognized) rules[key] = o.categoryId;
     n++;
   }
   await saveRules(rules);
@@ -313,6 +404,26 @@ export function initImport() {
       }
       if (same > 1) { render(); toast(`Категория изменена у ${same} похожих операций`); }
     }
+  });
+  // Блок «Не распознано»
+  $('imp-unrec').addEventListener('change', async (e) => {
+    const sel = e.target.closest('.unrec-select');
+    if (!sel || !sel.value) return;
+    const row = sel.closest('[data-group]');
+    const key = row.dataset.group;
+    let id = sel.value;
+    if (id === '__new__') {
+      id = await createCategory(key.startsWith('income') ? 'income' : 'expense');
+      if (!id) { sel.value = ''; return; }
+    }
+    assignGroup(key, id);
+    render();
+  });
+  $('imp-unrec').addEventListener('click', (e) => {
+    if (!e.target.closest('#unrec-skip')) return;
+    if (!confirm('Все нераспознанные траты попадут в категорию «Другое». Потом их можно поменять вручную. Продолжить?')) return;
+    st.leftOther = true;
+    render();
   });
   $('imp-all').addEventListener('click', () => {
     const ops = visibleOps();
