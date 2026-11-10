@@ -82,3 +82,23 @@ export function escapeHTML(s) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
+
+/** 'ГГГГ-ММ-ДД' → "15 ноября" (или "15 ноября 2025", если год другой). */
+export function shortDate(iso) {
+  const d = fromISODate(iso);
+  const yearPart = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : '';
+  return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}${yearPart}`;
+}
+
+/** Сколько дней от a до b (обе даты 'ГГГГ-ММ-ДД'). */
+export function daysBetween(a, b) {
+  return Math.round((fromISODate(b) - fromISODate(a)) / 86400000);
+}
+
+/** Правильное окончание: plural(3, 'день', 'дня', 'дней') → 'дня' */
+export function plural(n, one, few, many) {
+  const n10 = n % 10, n100 = n % 100;
+  if (n10 === 1 && n100 !== 11) return one;
+  if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
+  return many;
+}

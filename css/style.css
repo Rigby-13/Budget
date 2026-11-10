@@ -188,7 +188,7 @@ input { font: inherit; color: inherit; }
   display: flex; align-items: baseline; justify-content: center; gap: 6px;
   margin: 4px 0 18px;
 }
-#tx-amount {
+#tx-amount, .amount-input {
   width: 100%; max-width: 260px;
   border: 0; outline: 0; background: transparent;
   font-size: 48px; font-weight: 700; text-align: right; letter-spacing: -1px;
@@ -243,3 +243,80 @@ input { font: inherit; color: inherit; }
   max-width: calc(100% - 32px);
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* =====================================================================
+   Этап 2: долги, настройки
+   ===================================================================== */
+:root { --owe: #ff9500; --warn: #ff9500; }
+@media (prefers-color-scheme: dark) { :root { --owe: #ff9f0a; --warn: #ff9f0a; } }
+
+.owe { color: var(--owe); }
+.small { font-size: 14px; line-height: 1.4; }
+
+.month-switch { display: flex; align-items: center; flex: 1; justify-content: center; }
+.month-switch h1 { flex: none; min-width: 150px; }
+.settings-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.settings-btn { display: grid; place-items: center; }
+
+.summary-row b.big { font-size: 24px; font-weight: 700; }
+
+.segmented.wide { margin-bottom: 16px; }
+.segmented.wide button { flex: 1; }
+
+/* Строка долга */
+.tx-amount small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; }
+.tx-amount.owe { color: var(--owe); }
+.tx-comment.overdue { color: var(--danger); font-weight: 500; }
+.tx-comment.soon { color: var(--warn); }
+
+.progress { height: 4px; border-radius: 2px; background: var(--chip); margin-top: 6px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--income); border-radius: 2px; transition: width 0.3s; }
+.progress.big { height: 8px; border-radius: 4px; margin: 10px 0 4px; }
+
+.debt-card { margin: 8px 0 12px; }
+.section-title {
+  font-size: 13px; color: var(--muted); text-transform: uppercase;
+  margin: 18px 0 8px;
+}
+.sheet-body > .section-title:first-child { margin-top: 0; }
+
+.pay-inputs { display: flex; gap: 8px; }
+.pay-inputs input, .field input[type=date] { min-width: 0; }
+.pay-inputs input {
+  flex: 1; font-size: 17px; background: var(--chip); border: 0; border-radius: 10px;
+  padding: 10px 12px; min-height: 44px; color: var(--text);
+  -webkit-appearance: none; appearance: none;
+}
+.pay-inputs input:focus { outline: 2px solid var(--accent); }
+.pay-buttons { display: flex; gap: 8px; margin-top: 8px; }
+.pay-buttons button { flex: 1; }
+
+.pay-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-top: 0.5px solid var(--line);
+}
+.pay-row:first-child { border-top: 0; }
+.pay-row span { flex: 1; color: var(--muted); }
+.pay-del { width: 32px; height: 32px; border-radius: 16px; color: var(--muted); }
+.pay-del:active { background: var(--chip); }
+
+.primary-btn, .secondary-btn, .plain-btn {
+  display: block; text-align: center;
+  padding: 12px; border-radius: 12px; font-weight: 600; min-height: 46px;
+}
+.primary-btn { background: var(--accent); color: #fff; }
+.secondary-btn { background: var(--chip); color: var(--accent); }
+.plain-btn { width: 100%; background: var(--card); color: var(--accent); font-weight: 500; }
+.primary-btn:active, .secondary-btn:active, .plain-btn:active { opacity: 0.7; }
+.full { width: 100%; margin-top: 10px; }
+.file-btn { position: relative; overflow: hidden; cursor: pointer; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; }
+
+/* Дата в iOS по умолчанию по центру — выравниваем влево */
+input[type=date]::-webkit-date-and-time-value { text-align: left; }
+
+/* Поправки для узких экранов */
+.field { min-width: 0; }
+.toast { width: max-content; text-align: center; }
+.sheet-header .segmented button { white-space: nowrap; padding: 6px 10px; font-size: 13px; }
+.sheet-header .link-btn { min-width: 0; }

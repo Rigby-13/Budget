@@ -25,9 +25,15 @@
   <!-- ===================== ВКЛАДКА «ТРАТЫ» ===================== -->
   <main id="view-expenses" class="view active">
     <header class="topbar">
-      <button class="icon-btn" id="prev-month" aria-label="Предыдущий месяц">‹</button>
-      <h1 id="month-title">Месяц</h1>
-      <button class="icon-btn" id="next-month" aria-label="Следующий месяц">›</button>
+      <button class="icon-btn settings-btn" aria-label="Настройки и резервная копия">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
+      </button>
+      <div class="month-switch">
+        <button class="icon-btn" id="prev-month" aria-label="Предыдущий месяц">‹</button>
+        <h1 id="month-title">Месяц</h1>
+        <button class="icon-btn" id="next-month" aria-label="Следующий месяц">›</button>
+      </div>
+      <span class="icon-btn" aria-hidden="true"></span>
     </header>
 
     <section class="summary card">
@@ -47,9 +53,23 @@
     <header class="topbar"><h1>Статистика</h1></header>
     <div class="empty">Скоро здесь будет статистика 📊</div>
   </main>
+  <!-- ===================== ВКЛАДКА «ДОЛГИ» ===================== -->
   <main id="view-debts" class="view">
     <header class="topbar"><h1>Долги</h1></header>
-    <div class="empty">Скоро здесь будут долги 🤝</div>
+
+    <section class="summary card">
+      <div class="summary-row">
+        <div><span class="muted">Мне должны</span><b id="debt-owed-total" class="big income">0 ₽</b></div>
+        <div><span class="muted">Я должен</span><b id="debt-owe-total" class="big owe">0 ₽</b></div>
+      </div>
+    </section>
+
+    <div class="segmented wide" id="debt-filter">
+      <button type="button" data-filter="active" class="active">Активные</button>
+      <button type="button" data-filter="closed">Закрытые</button>
+    </div>
+
+    <div id="debt-list"></div>
   </main>
   <main id="view-wishlist" class="view">
     <header class="topbar"><h1>Корзина</h1></header>
@@ -113,6 +133,97 @@
       <button type="button" class="danger-btn" id="tx-delete" hidden>Удалить запись</button>
     </div>
   </form>
+
+  <!-- ============ ПАНЕЛЬ: ДОЛГ ============ -->
+  <form id="debt-sheet" class="sheet" autocomplete="off" novalidate>
+    <div class="sheet-header">
+      <button type="button" class="link-btn" id="debt-cancel">Отмена</button>
+      <div class="segmented" id="debt-direction">
+        <button type="button" data-dir="owed" class="active">Мне должны</button>
+        <button type="button" data-dir="owe">Я должен</button>
+      </div>
+      <button type="submit" class="link-btn bold">Готово</button>
+    </div>
+
+    <div class="sheet-body">
+      <label class="amount-wrap">
+        <input id="debt-amount" class="amount-input" type="text" inputmode="decimal" placeholder="0" aria-label="Сумма долга">
+        <span class="currency">₽</span>
+      </label>
+
+      <label class="field">
+        <span>Кто</span>
+        <input id="debt-person" type="text" list="people-list" placeholder="Имя" enterkeyhint="next">
+        <datalist id="people-list"></datalist>
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>Когда</span>
+          <input id="debt-date" type="date">
+        </label>
+        <label class="field">
+          <span>Вернуть до</span>
+          <input id="debt-due" type="date">
+        </label>
+      </div>
+      <label class="field">
+        <span>Комментарий</span>
+        <input id="debt-comment" type="text" placeholder="необязательно" enterkeyhint="done">
+      </label>
+
+      <!-- Видно только у уже записанного долга -->
+      <div id="debt-extra" hidden>
+        <div class="card debt-card">
+          <div id="debt-status"></div>
+          <div class="progress big"><i id="debt-progress"></i></div>
+
+          <div id="pay-form">
+            <div class="section-title">Внести погашение</div>
+            <div class="pay-inputs">
+              <input id="pay-amount" type="text" inputmode="decimal" placeholder="Сумма, ₽" aria-label="Сумма погашения">
+              <input id="pay-date" type="date" aria-label="Дата погашения">
+            </div>
+            <div class="pay-buttons">
+              <button type="button" class="secondary-btn" id="pay-all">Всю сумму</button>
+              <button type="button" class="primary-btn" id="pay-add">Внести</button>
+            </div>
+          </div>
+
+          <div class="section-title">История погашений</div>
+          <div id="pay-list"></div>
+        </div>
+
+        <button type="button" class="plain-btn" id="debt-toggle">Отметить закрытым</button>
+        <button type="button" class="danger-btn" id="debt-delete">Удалить долг</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- ============ ПАНЕЛЬ: НАСТРОЙКИ И РЕЗЕРВНАЯ КОПИЯ ============ -->
+  <div id="settings-sheet" class="sheet">
+    <div class="sheet-header">
+      <span class="link-btn"></span>
+      <b>Настройки</b>
+      <button type="button" class="link-btn bold" data-close>Готово</button>
+    </div>
+    <div class="sheet-body">
+      <div class="section-title">Резервная копия</div>
+      <div class="card">
+        <p class="small muted" style="margin-top:0">
+          Все данные хранятся только на этом телефоне. Время от времени сохраняйте
+          копию в «Файлы» или iCloud — если удалить приложение или сменить телефон,
+          из неё всё можно восстановить.
+        </p>
+        <p class="small" id="backup-stats"></p>
+        <p class="small muted" id="backup-last"></p>
+        <button type="button" class="primary-btn full" id="backup-export">Сохранить копию в файл</button>
+        <label class="secondary-btn full file-btn">
+          Восстановить из файла
+          <input id="backup-file" type="file" accept="application/json,.json">
+        </label>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast" role="status"></div>
 

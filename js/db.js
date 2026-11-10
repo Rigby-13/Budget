@@ -87,3 +87,32 @@ export async function getTransactionsBetween(from, to) {
 export function newId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
+
+/** Все данные из всех таблиц — для резервной копии. */
+export async function exportAll() {
+  const data = {};
+  for (const name of STORES) data[name] = await getAll(name);
+  return data;
+}
+
+/**
+ * Заменить ВСЕ данные данными из резервной копии.
+ * Делается одной транзакцией: если что-то пойдёт не так,
+ * старые данные останутся нетронутыми.
+ */
+export async function importAll(data) {
+  const db = await openDB();
+  const tx = db.transaction(STORES, 'readwrite');
+  for (const name of STORES) {
+    const s = tx.objectStore(name);
+    s.clear();
+    for (const item of data[name] || []) s.put(item);
+  }
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+export { STORES };
