@@ -4,14 +4,15 @@
 
 import * as db from './db.js';
 import {
-  formatMoney, parseMoney, moneyToInput, MONTHS, todayISO,
+  formatMoney, parseMoney, moneyToInput, MONTHS, todayISO, toISODate,
   monthRange, dayLabel, escapeHTML,
 } from './utils.js';
 import { $, focusField, openSheet, closeSheet, closeSheets, closeTopSheet, isOpen, shake, toast } from './ui.js';
 import { initCategories, openCategories } from './categories.js';
 import { initDebts, renderDebts, openDebtSheet } from './debts.js';
 import { initBackup, openSettings } from './backup.js';
-import { initStats, renderStats, limitStatuses, checkLimitAfterSave } from './stats.js';
+import { initStats, renderStats } from './stats.js';
+import { limitStatuses, checkLimitAfterSave, todayStatuses, dailyResults } from './limits.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
 const DEFAULT_CATEGORIES = [
@@ -93,6 +94,8 @@ async function renderExpenses() {
   $('sum-income').textContent = formatMoney(income);
   $('sum-balance').textContent = (balance > 0 ? '+' : '') + formatMoney(balance);
 
+  await renderDailyCard(items);
+
   // Предупреждения о лимитах (80% и больше)
   const alerts = limitStatuses(state.categories, items).filter((l) => l.status !== 'ok');
   $('limit-alerts').innerHTML = alerts.map((l) => `
@@ -140,6 +143,63 @@ async function renderExpenses() {
     html += `</div></section>`;
   }
   list.innerHTML = html;
+}
+
+// =====================================================================
+// КАРТОЧКА «ЛИМИТЫ НА СЕГОДНЯ» — остаток на день и итоги вчера / за месяц
+// =====================================================================
+async function renderDailyCard(monthItems) {
+  const card = $('daily-card');
+  const now = new Date();
+  const isCurrentMonth = state.year === now.getFullYear() && state.month === now.getMonth();
+  const today = todayStatuses(state.categories, monthItems);
+  if (!isCurrentMonth || !today.length) { card.innerHTML = ''; return; }
+
+  // Вчера (может быть в прошлом месяце — поэтому берём траты отдельно)
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yISO = toISODate(y);
+  const yItems = await db.getTransactionsBetween(yISO, yISO);
+  const yRes = dailyResults(state.categories, yItems, yISO, yISO);
+
+  // С начала месяца
+  const { from } = monthRange(state.year, state.month);
+  const mRes = dailyResults(state.categories, monthItems, from, todayISO());
+
+  const rows = today.map((d) => `
+    <div class="today-row">
+      <span class="today-name">${d.category.emoji} ${escapeHTML(d.category.name)}</span>
+      <span class="today-val ${d.status}">${d.status === 'over'
+        ? `превышен на ${formatMoney(d.spent - d.limit)}`
+        : `осталось ${formatMoney(d.limit - d.spent)}`}<small> из ${formatMoney(d.limit)}</small></span>
+    </div>
+    <div class="progress limit-bar ${d.status}"><i style="width:${Math.min(100, d.pct)}%"></i></div>`).join('');
+
+  const fmtRes = (r) => {
+    const parts = [];
+    if (r.saved) parts.push(`<span class="income">+${formatMoney(r.saved)}</span> сэкономлено`);
+    if (r.over) parts.push(`<span class="negative">−${formatMoney(r.over)}</span> превышение`);
+    return parts.join(' · ') || 'ровно в лимит';
+  };
+
+  card.innerHTML = `<section class="card daily-card">
+    <div class="card-head"><h3>Лимиты на сегодня</h3></div>
+    ${rows}
+    <div class="daily-foot">
+      ${yRes.rows.length ? `<div>Вчера: ${fmtRes(yRes)}</div>` : ''}
+      ${mRes.rows.length ? `<div>С начала месяца: ${fmtRes(mRes)}</div>` : ''}
+    </div>
+  </section>`;
+
+  // Напоминание один раз в день — итог вчерашнего дня
+  let shown = null;
+  try { shown = localStorage.getItem('dailyReport'); } catch { /* ничего */ }
+  if (yRes.rows.length && shown !== todayISO()) {
+    try { localStorage.setItem('dailyReport', todayISO()); } catch { /* ничего */ }
+    const msg = yRes.over > yRes.saved
+      ? `Вчера лимит превышен на ${formatMoney(yRes.over - yRes.saved)} 😬`
+      : `Вчера вы сэкономили ${formatMoney(yRes.saved - yRes.over)} 👏`;
+    setTimeout(() => toast(msg, 4000), 600);
+  }
 }
 
 function shiftMonth(delta) {
