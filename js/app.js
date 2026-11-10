@@ -7,7 +7,7 @@ import {
   formatMoney, parseMoney, moneyToInput, MONTHS, todayISO,
   monthRange, dayLabel, escapeHTML,
 } from './utils.js';
-import { $, openSheet, closeSheet, closeSheets, closeTopSheet, isOpen, shake, toast } from './ui.js';
+import { $, focusField, openSheet, closeSheet, closeSheets, closeTopSheet, isOpen, shake, toast } from './ui.js';
 import { initCategories, openCategories } from './categories.js';
 import { initDebts, renderDebts, openDebtSheet } from './debts.js';
 import { initBackup, openSettings } from './backup.js';
@@ -157,7 +157,7 @@ function openTxSheet(tx = null) {
 
   // Для новой записи сразу открываем клавиатуру с цифрами.
   // На iPhone focus() работает только прямо внутри обработчика нажатия.
-  if (!tx) $('tx-amount').focus();
+  if (!tx) focusField($('tx-amount'));
 }
 
 function closeTxSheet() {
@@ -203,7 +203,7 @@ async function saveForm(e) {
   const amount = parseMoney($('tx-amount').value);
   if (!amount || amount <= 0) {
     shake($('tx-amount'));
-    $('tx-amount').focus();
+    $('tx-amount').focus({ preventScroll: true });
     return;
   }
   if (!state.formCategoryId) { toast('Выберите категорию'); return; }

@@ -16,7 +16,7 @@ import {
   formatMoney, parseMoney, moneyToInput, todayISO,
   shortDate, daysBetween, plural, escapeHTML,
 } from './utils.js';
-import { $, openSheet, closeSheets, shake, toast } from './ui.js';
+import { $, focusField, openSheet, closeSheets, shake, toast } from './ui.js';
 
 const state = {
   filter: 'active',     // 'active' или 'closed'
@@ -132,7 +132,7 @@ export async function openDebtSheet(debt = null) {
   renderExtra();
   await fillPeopleList();
   openSheet($('debt-sheet'));
-  if (!debt) $('debt-amount').focus();
+  if (!debt) focusField($('debt-amount'));
 }
 
 function renderDirection() {
