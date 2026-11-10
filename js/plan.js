@@ -2,16 +2,23 @@
 // plan.js — план на месяц (мастер-лимит) и лимиты по категориям.
 // Здесь только расчёты, без интерфейса.
 //
-// План хранится в таблице settings, отдельно на каждый месяц:
-// {
-//   id: 'plan:2026-11', month: '2026-11',
-//   income:  2000000,   // бюджет на месяц, копейки (0 — не задан)
-//   savings:  500000,   // сколько отложить в копилку
-//   limits: [
-//     { categoryId, period: 'day' | 'week' | 'month', amount, since: 'ГГГГ-ММ-ДД' }
-//   ]
-// }
-// Если на месяц плана нет — берётся план прошлого месяца (копия).
+// Хранение (таблица settings):
+//
+//  Шаблон плана — то, что вы составляете один раз:
+//  { id: 'tpl:…', name: 'Обычный месяц',
+//    income: 2000000, savings: 500000,          // копейки
+//    limits: [{ categoryId, period: 'day'|'week'|'month', amount }] }
+//
+//  Месяц — какой шаблон в нём выбран и копия плана на память:
+//  { id: 'plan:2026-11', month: '2026-11', templateId: 'tpl:…',
+//    since: { [categoryId]: 'ГГГГ-ММ-ДД' },     // лимит, добавленный посреди месяца
+//    snapshot: { name, income, savings, limits } }
+//
+//  • Текущий и будущие месяцы берут значения из шаблона «вживую»:
+//    поменяли шаблон — поменялись и они.
+//  • Прошлые месяцы используют свою копию (snapshot), поэтому их итоги
+//    не меняются, если потом отредактировать шаблон.
+//  • Если у месяца нет своей записи — он берёт шаблон прошлого месяца.
 //
 // Как работает лимит в день / в неделю:
 //   ставка в день = лимит в день  или  лимит в неделю / 7.
@@ -52,35 +59,179 @@ export function prevMonthKey(key) {
 }
 
 // ---------------------------------------------------------------------
-// Загрузка и сохранение плана
+// Шаблоны планов
 // ---------------------------------------------------------------------
-/**
- * План на месяц. Если своего нет — копия последнего более раннего плана
- * (с пометкой inherited). Если планов нет вообще — null.
- */
-export async function getPlan(key) {
-  const own = await db.get('settings', 'plan:' + key);
-  if (own) return own;
-  const earlier = (await db.getAll('settings'))
-    .filter((s) => s.id.startsWith('plan:') && s.month < key)
-    .sort((a, b) => b.month.localeCompare(a.month))[0];
-  if (!earlier) return null;
-  const { from } = monthBounds(key);
+export async function listTemplates() {
+  return (await db.getAll('settings'))
+    .filter((x) => x.id.startsWith('tpl:'))
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+}
+export async function getTemplate(id) {
+  return id ? db.get('settings', id) : null;
+}
+export function newTemplate(name, from = null) {
   return {
-    id: 'plan:' + key, month: key, inherited: true,
-    income: earlier.income, savings: earlier.savings,
-    limits: earlier.limits.map((l) => ({ ...l, since: from })),
+    id: 'tpl:' + db.newId(), name, createdAt: Date.now(),
+    income: from ? from.income : 0,
+    savings: from ? from.savings : 0,
+    limits: from ? from.limits.map(({ categoryId, period, amount }) => ({ categoryId, period, amount })) : [],
+  };
+}
+export async function saveTemplate(t) {
+  await db.put('settings', t);
+  // Обновляем копию плана текущего месяца, если он на этом шаблоне
+  await refreshCurrentSnapshot();
+}
+export async function deleteTemplate(id) {
+  await db.remove('settings', id);
+}
+
+/** Месяцы (текущий и будущие), где выбран этот шаблон. */
+export async function monthsUsing(templateId) {
+  const cur = currentMonthKey();
+  const recs = await monthRecords();
+  const res = [];
+  // Текущий месяц может использовать шаблон по наследству
+  if ((await resolveTemplateId(cur)) === templateId) res.push(cur);
+  for (const r of recs) if (r.month > cur && r.templateId === templateId) res.push(r.month);
+  return res;
+}
+
+// ---------------------------------------------------------------------
+// Записи месяцев
+// ---------------------------------------------------------------------
+async function monthRecords() {
+  return (await db.getAll('settings'))
+    .filter((x) => x.id.startsWith('plan:'))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
+
+/** Своя запись месяца или ближайшая более ранняя. */
+async function recordFor(key) {
+  const recs = await monthRecords();
+  let found = null;
+  for (const r of recs) if (r.month <= key) found = r;
+  return found;
+}
+
+/** Какой шаблон действует в месяце. */
+export async function resolveTemplateId(key) {
+  const r = await recordFor(key);
+  return r ? r.templateId : null;
+}
+
+/** Собрать план месяца из значений (шаблона или копии) и дат «since». */
+function buildPlan(key, values, rec, extra = {}) {
+  const { from } = monthBounds(key);
+  const own = rec && rec.month === key;
+  return {
+    month: key,
+    name: values.name,
+    income: values.income,
+    savings: values.savings,
+    limits: values.limits.map((l) => ({
+      ...l,
+      since: (own && rec.since && rec.since[l.categoryId]) || from,
+    })),
+    ...extra,
   };
 }
 
-/** План месяца для редактирования (по умолчанию текущего; пустой, если нет). */
-export async function getPlanForEdit(key = currentMonthKey()) {
-  return (await getPlan(key)) || { id: 'plan:' + key, month: key, income: 0, savings: 0, limits: [] };
+/**
+ * План на месяц или null.
+ * Поля: month, name, templateId, income, savings, limits (с since),
+ *       inherited (своей записи нет), past (месяц прошёл — копия).
+ */
+export async function getPlan(key) {
+  const cur = currentMonthKey();
+  const rec = await recordFor(key);
+  if (!rec) return null;
+  const own = rec.month === key;
+
+  if (key < cur) {
+    // Прошлый месяц — по копии, которая была сохранена тогда
+    if (!rec.snapshot) return null;
+    return buildPlan(key, rec.snapshot, rec, { templateId: rec.templateId, inherited: !own, past: true });
+  }
+  const t = await getTemplate(rec.templateId);
+  if (!t) return rec.snapshot ? buildPlan(key, rec.snapshot, rec, { templateId: null, inherited: !own }) : null;
+  return buildPlan(key, t, rec, { templateId: t.id, inherited: !own });
 }
 
+/** Сохранить копию плана в запись текущего месяца (создать запись, если нужно). */
+export async function refreshCurrentSnapshot() {
+  const cur = currentMonthKey();
+  const rec = await recordFor(cur);
+  if (!rec) return;
+  const t = await getTemplate(rec.templateId);
+  if (!t) return;
+  const own = rec.month === cur ? rec : { id: 'plan:' + cur, month: cur, templateId: rec.templateId, since: {} };
+  own.snapshot = { name: t.name, income: t.income, savings: t.savings, limits: t.limits };
+  await db.put('settings', own);
+}
+
+/** Выбрать шаблон для месяца (действует и на следующие месяцы без своей записи). */
+export async function applyTemplate(key, templateId) {
+  const existing = await db.get('settings', 'plan:' + key);
+  const rec = existing || { id: 'plan:' + key, month: key, since: {} };
+  rec.templateId = templateId;
+  if (key < currentMonthKey()) {
+    const t = await getTemplate(templateId);
+    rec.snapshot = { name: t.name, income: t.income, savings: t.savings, limits: t.limits };
+  }
+  await db.put('settings', rec);
+  await refreshCurrentSnapshot();
+}
+
+// ---------------------------------------------------------------------
+// Редактирование (вкладка «Лимит»)
+// ---------------------------------------------------------------------
+/**
+ * План для редактирования.
+ *  mode 'template' — правим шаблон (текущий и будущие месяцы);
+ *  mode 'snapshot' — прошлый месяц: правим только его копию.
+ * Если шаблона ещё нет — создаём новый «Мой план» (сохранится при «Готово»).
+ */
+export async function getPlanForEdit(key = currentMonthKey()) {
+  const plan = await getPlan(key);
+  const past = key < currentMonthKey();
+  if (plan && past) return { ...plan, mode: 'snapshot' };
+  if (plan && plan.templateId) return { ...plan, mode: 'template' };
+  // Шаблона нет (ещё не создан или удалён) — новый, со значениями плана, если были
+  const t = newTemplate((await listTemplates()).length ? 'Новый план' : 'Мой план', plan);
+  return { ...buildPlan(key, t, null), templateId: t.id, mode: past ? 'snapshot' : 'template', isNew: true, createdAt: t.createdAt };
+}
+
+/** Сохранить результат редактирования. */
 export async function savePlan(plan) {
-  const { inherited, ...clean } = plan;
-  await db.put('settings', clean);
+  const key = plan.month;
+  const { from } = monthBounds(key);
+  const values = {
+    income: plan.income,
+    savings: plan.savings,
+    limits: plan.limits.map(({ categoryId, period, amount }) => ({ categoryId, period, amount })),
+  };
+  // Даты «since» (лимит добавлен посреди месяца) храним в записи месяца
+  const since = {};
+  for (const l of plan.limits) if (l.since && l.since > from) since[l.categoryId] = l.since;
+
+  const existing = await db.get('settings', 'plan:' + key);
+  const rec = existing || { id: 'plan:' + key, month: key };
+  rec.since = since;
+
+  if (plan.mode === 'snapshot') {
+    rec.templateId = rec.templateId || plan.templateId || null;
+    rec.snapshot = { name: plan.name, ...values };
+    await db.put('settings', rec);
+    return;
+  }
+  const t = (await getTemplate(plan.templateId))
+    || { id: plan.templateId, name: plan.name, createdAt: plan.createdAt || Date.now() };
+  Object.assign(t, values);
+  await db.put('settings', t);
+  rec.templateId = t.id;
+  await db.put('settings', rec);
+  await refreshCurrentSnapshot();
 }
 
 /** Добавить или изменить лимит категории в плане (без сохранения). */
@@ -233,26 +384,60 @@ export function monthResult(plan, categories, monthTx, upto) {
 }
 
 // ---------------------------------------------------------------------
-// Переход со старых лимитов (версия 5.x) на план
+// Переходы со старых версий
 // ---------------------------------------------------------------------
+/** 5.x: лимиты хранились в категориях → шаблон «Мой план». */
 export async function migrateOldLimits() {
-  const plans = (await db.getAll('settings')).filter((s) => s.id.startsWith('plan:'));
-  if (plans.length) return;
+  const all = await db.getAll('settings');
+  if (all.some((x) => x.id.startsWith('plan:') || x.id.startsWith('tpl:'))) return;
   const cats = await db.getAll('categories');
   const key = currentMonthKey();
   const { from } = monthBounds(key);
   const limits = [];
+  const since = {};
   for (const c of cats) {
     if (c.type !== 'expense' || c.archived) continue;
     const dl = (c.dailyLimits || []);
     const last = dl[dl.length - 1];
     if (last && last.amount > 0) {
-      limits.push({ categoryId: c.id, period: 'day', amount: last.amount, since: last.from > from ? last.from : from });
+      limits.push({ categoryId: c.id, period: 'day', amount: last.amount });
+      if (last.from > from) since[c.id] = last.from;
     } else if (c.limit > 0) {
-      limits.push({ categoryId: c.id, period: 'month', amount: c.limit, since: from });
+      limits.push({ categoryId: c.id, period: 'month', amount: c.limit });
     }
   }
-  if (limits.length) await savePlan({ id: 'plan:' + key, month: key, income: 0, savings: 0, limits });
+  if (!limits.length) return;
+  const t = { ...newTemplate('Мой план'), limits };
+  await db.put('settings', t);
+  await db.put('settings', { id: 'plan:' + key, month: key, templateId: t.id, since });
+  await refreshCurrentSnapshot();
 }
+
+/** 6.1: план хранился прямо в записи месяца → шаблоны. */
+export async function migratePlansToTemplates() {
+  const recs = (await monthRecords()).filter((r) => !('templateId' in r) && 'income' in r);
+  if (!recs.length) return;
+  const same = (a, b) => JSON.stringify([a.income, a.savings, a.limits.map(({ categoryId, period, amount }) => [categoryId, period, amount])])
+    === JSON.stringify([b.income, b.savings, b.limits.map(({ categoryId, period, amount }) => [categoryId, period, amount])]);
+  let prev = null;
+  let n = 0;
+  for (const r of recs) {
+    const { from } = monthBounds(r.month);
+    let t = prev && same(prev, r) ? prev : null;
+    if (!t) {
+      t = newTemplate(n === 0 ? 'Мой план' : `План (${MONTHS_LOWER[Number(r.month.slice(5)) - 1]})`, r);
+      t.createdAt = Date.now() + n++;
+      await db.put('settings', t);
+    }
+    const since = {};
+    for (const l of r.limits) if (l.since && l.since > from) since[l.categoryId] = l.since;
+    await db.put('settings', {
+      id: r.id, month: r.month, templateId: t.id, since,
+      snapshot: { name: t.name, income: r.income, savings: r.savings, limits: t.limits },
+    });
+    prev = t;
+  }
+}
+const MONTHS_LOWER = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 
 export { addDays };

@@ -25,9 +25,7 @@
   <!-- ===================== ВКЛАДКА «ТРАТЫ» ===================== -->
   <main id="view-expenses" class="view active">
     <header class="topbar">
-      <button class="icon-btn settings-btn" aria-label="Настройки и резервная копия">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
+      <span class="icon-btn" aria-hidden="true"></span>
       <div class="month-switch">
         <button class="icon-btn" id="prev-month" aria-label="Предыдущий месяц">‹</button>
         <h1 id="month-title">Месяц</h1>
@@ -145,9 +143,41 @@
 
     <div id="debt-list"></div>
   </main>
-  <main id="view-wishlist" class="view">
-    <header class="topbar"><h1>Корзина</h1></header>
-    <div class="empty">Скоро здесь будет вишлист 🛍️</div>
+  <!-- ===================== ВКЛАДКА «НАСТРОЙКИ» ===================== -->
+  <main id="view-settings" class="view">
+    <header class="topbar"><h1>Настройки</h1></header>
+
+      <div class="section-title">Категории</div>
+      <button type="button" class="plain-btn row-btn" id="settings-cats">
+        <span>🏷️ Категории расходов и доходов</span><span class="muted">›</span>
+      </button>
+
+      <div class="section-title">Планы</div>
+      <div class="card tpl-card">
+        <div id="tpl-list"></div>
+        <button type="button" class="secondary-btn full" id="tpl-new">＋ Новый план</button>
+      </div>
+
+      <div class="section-title">Резервная копия</div>
+      <div class="card">
+        <p class="small muted" style="margin-top:0">
+          Все данные хранятся только на этом телефоне. Время от времени сохраняйте
+          копию в «Файлы» или iCloud — если удалить приложение или сменить телефон,
+          из неё всё можно восстановить.
+        </p>
+        <p class="small" id="backup-stats"></p>
+        <p class="small muted" id="backup-last"></p>
+        <button type="button" class="primary-btn full" id="backup-export">Сохранить копию в файл</button>
+        <label class="secondary-btn full file-btn">
+          Восстановить из файла
+          <input id="backup-file" type="file" accept="application/json,.json">
+        </label>
+      </div>
+
+      <div class="section-title">Тестовый режим</div>
+      <div class="card" id="test-controls"></div>
+
+      <p class="small muted center">Версия 6.2</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -167,9 +197,9 @@
       <svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>
       <span>Долги</span>
     </button>
-    <button class="tab" data-view="wishlist">
-      <svg viewBox="0 0 24 24"><path d="M3 4h2l2.5 11h10L20 8H6.5"/><circle cx="9" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>
-      <span>Корзина</span>
+    <button class="tab" data-view="settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Настройки</span>
     </button>
   </nav>
 
@@ -187,6 +217,7 @@
     </div>
 
     <div class="sheet-body">
+      <div class="plan-picker" id="plan-picker"></div>
       <div class="amount-caption" id="amount-caption" hidden>Сумма лимита</div>
       <label class="amount-wrap">
         <input id="tx-amount" type="text" inputmode="decimal" placeholder="0" aria-label="Сумма">
@@ -301,42 +332,6 @@
     </div>
   </form>
 
-  <!-- ============ ПАНЕЛЬ: НАСТРОЙКИ И РЕЗЕРВНАЯ КОПИЯ ============ -->
-  <div id="settings-sheet" class="sheet">
-    <div class="sheet-header">
-      <span class="link-btn"></span>
-      <b>Настройки</b>
-      <button type="button" class="link-btn bold" data-close>Готово</button>
-    </div>
-    <div class="sheet-body">
-      <div class="section-title">Категории</div>
-      <button type="button" class="plain-btn row-btn" id="settings-cats">
-        <span>🏷️ Категории расходов и доходов</span><span class="muted">›</span>
-      </button>
-
-      <div class="section-title">Резервная копия</div>
-      <div class="card">
-        <p class="small muted" style="margin-top:0">
-          Все данные хранятся только на этом телефоне. Время от времени сохраняйте
-          копию в «Файлы» или iCloud — если удалить приложение или сменить телефон,
-          из неё всё можно восстановить.
-        </p>
-        <p class="small" id="backup-stats"></p>
-        <p class="small muted" id="backup-last"></p>
-        <button type="button" class="primary-btn full" id="backup-export">Сохранить копию в файл</button>
-        <label class="secondary-btn full file-btn">
-          Восстановить из файла
-          <input id="backup-file" type="file" accept="application/json,.json">
-        </label>
-      </div>
-
-      <div class="section-title">Тестовый режим</div>
-      <div class="card" id="test-controls"></div>
-
-      <p class="small muted center">Версия 6.1.1</p>
-    </div>
-  </div>
-
   <!-- ============ ПАНЕЛЬ: СПИСОК КАТЕГОРИЙ ============ -->
   <div id="cats-sheet" class="sheet">
     <div class="sheet-header">
@@ -376,6 +371,9 @@
       <button type="button" class="danger-btn" id="cat-delete" hidden>Удалить категорию</button>
     </div>
   </form>
+
+  <!-- Меню действий снизу экрана -->
+  <div id="action-sheet" class="sheet action-sheet"></div>
 
   <div id="toast" class="toast" role="status"></div>
 

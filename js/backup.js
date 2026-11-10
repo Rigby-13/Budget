@@ -5,7 +5,7 @@
 
 import * as db from './db.js';
 import { todayISO, shortDate } from './utils.js';
-import { $, openSheet, toast } from './ui.js';
+import { $, toast } from './ui.js';
 
 const APP_ID = 'budget-pwa';
 const BACKUP_VERSION = 1;
@@ -25,13 +25,13 @@ async function makeFile() {
   return new File([json], `budget-backup-${todayISO()}.json`, { type: 'application/json' });
 }
 
-export async function openSettings() {
+/** Вкладка «Настройки» открыта — обновляем данные для резервной копии. */
+export async function renderSettings() {
   preparedFile = null;
   renderLastBackup();
   const data = await db.exportAll();
   $('backup-stats').textContent =
-    `Записей: ${data.transactions.length} · долгов: ${data.debts.length} · вещей в корзине: ${data.wishlist.length}`;
-  openSheet($('settings-sheet'));
+    `Записей: ${data.transactions.length} · долгов: ${data.debts.length}`;
   preparedFile = await makeFile();
 }
 

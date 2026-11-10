@@ -11,7 +11,7 @@
 import * as db from './db.js';
 import { isTestMode, todayISO, addDays, shortDate, now } from './utils.js';
 import { $, toast } from './ui.js';
-import { currentMonthKey, monthBounds, savePlan } from './plan.js';
+import { currentMonthKey, monthBounds, newTemplate, saveTemplate, applyTemplate } from './plan.js';
 
 function setLS(key, value) {
   try {
@@ -108,16 +108,19 @@ async function fillExample() {
   const ai = await ensure('Нейросети', '🤖');
   const fun = await ensure('Развлечения', '🎉');
 
+  // Шаблон «Пример» — выбран на текущий месяц
   const key = currentMonthKey();
   const { from } = monthBounds(key);
-  await savePlan({
-    id: 'plan:' + key, month: key, income: 2000000, savings: 500000,
+  const t = {
+    ...newTemplate('Пример'), income: 2000000, savings: 500000,
     limits: [
-      { categoryId: transport.id, period: 'month', amount: 200000, since: from },
-      { categoryId: ai.id, period: 'month', amount: 200000, since: from },
-      { categoryId: food.id, period: 'week', amount: 210000, since: from },
+      { categoryId: transport.id, period: 'month', amount: 200000 },
+      { categoryId: ai.id, period: 'month', amount: 200000 },
+      { categoryId: food.id, period: 'week', amount: 210000 },
     ],
-  });
+  };
+  await saveTemplate(t);
+  await applyTemplate(key, t.id);
 
   // Случайные траты по вчерашний день
   const today = todayISO();
