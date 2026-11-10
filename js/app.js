@@ -7,7 +7,8 @@ import {
   formatMoney, parseMoney, moneyToInput, MONTHS, todayISO,
   monthRange, dayLabel, escapeHTML,
 } from './utils.js';
-import { $, openSheet, closeSheets, shake, toast } from './ui.js';
+import { $, openSheet, closeSheet, closeSheets, closeTopSheet, isOpen, shake, toast } from './ui.js';
+import { initCategories, openCategories } from './categories.js';
 import { initDebts, renderDebts, openDebtSheet } from './debts.js';
 import { initBackup, openSettings } from './backup.js';
 
@@ -48,6 +49,7 @@ async function init() {
   bindEvents();
   initDebts();
   initBackup();
+  initCategories();
   await renderExpenses();
 
   // Service worker — нужен для работы без интернета
@@ -163,7 +165,7 @@ function openTxSheet(tx = null) {
   if (!tx) $('tx-amount').focus();
 }
 
-function closeSheet() {
+function closeTxSheet() {
   closeSheets();
   state.editing = null;
 }
@@ -176,13 +178,21 @@ function renderTypeToggle() {
 
 function renderCategoryChips() {
   const cats = categoriesOf(state.formType);
+  // Если редактируем старую запись со скрытой категорией — показываем и её,
+  // чтобы категория записи случайно не поменялась
+  const current = state.categories.find((c) => c.id === state.editing?.categoryId);
+  if (current && current.archived && current.type === state.formType) cats.push(current);
+
   if (!cats.some((c) => c.id === state.formCategoryId)) {
     state.formCategoryId = cats[0]?.id ?? null;
   }
   $('tx-categories').innerHTML = cats.map((c) => `
     <button type="button" class="cat-chip ${c.id === state.formCategoryId ? 'active' : ''}" data-id="${c.id}">
       <span class="e">${c.emoji}</span><span class="n">${escapeHTML(c.name)}</span>
-    </button>`).join('');
+    </button>`).join('') + `
+    <button type="button" class="cat-chip cat-edit" data-edit="1">
+      <span class="e">✏️</span><span class="n">Изменить</span>
+    </button>`;
 }
 
 // Запоминаем последнюю использованную категорию — чтобы добавлять быстрее
@@ -217,7 +227,7 @@ async function saveForm(e) {
   rememberCategory(tx.type, tx.categoryId);
 
   const wasEditing = !!state.editing;
-  closeSheet();
+  closeTxSheet();
 
   // Если запись в другом месяце — переключаемся на него, чтобы её было видно
   const [y, m] = date.split('-').map(Number);
@@ -230,7 +240,7 @@ async function deleteCurrent() {
   if (!state.editing) return;
   if (!confirm('Удалить эту запись?')) return;
   await db.remove('transactions', state.editing.id);
-  closeSheet();
+  closeTxSheet();
   await renderExpenses();
   toast('Удалено');
 }
@@ -274,11 +284,19 @@ function bindEvents() {
     if (tx) openTxSheet(tx);
   });
 
-  $('tx-cancel').addEventListener('click', closeSheet);
-  $('backdrop').addEventListener('click', closeSheet);
+  $('tx-cancel').addEventListener('click', closeTxSheet);
+  $('backdrop').addEventListener('click', closeTopSheet);
+  // Кнопки с атрибутом data-close закрывают свою панель
   for (const b of document.querySelectorAll('[data-close]')) {
-    b.addEventListener('click', closeSheets);
+    b.addEventListener('click', () => closeSheet(b.closest('.sheet')));
   }
+
+  // Категории изменились (в настройках) — перечитываем и перерисовываем
+  document.addEventListener('categories-changed', async () => {
+    state.categories = await db.getAll('categories');
+    if (isOpen($('tx-sheet'))) renderCategoryChips();
+    await renderExpenses();
+  });
   $('tx-sheet').addEventListener('submit', saveForm);
   $('tx-delete').addEventListener('click', deleteCurrent);
 
@@ -294,6 +312,7 @@ function bindEvents() {
   $('tx-categories').addEventListener('click', (e) => {
     const b = e.target.closest('.cat-chip');
     if (!b) return;
+    if (b.dataset.edit) { openCategories(state.formType); return; }
     state.formCategoryId = b.dataset.id;
     renderCategoryChips();
   });

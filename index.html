@@ -207,6 +207,11 @@
       <button type="button" class="link-btn bold" data-close>Готово</button>
     </div>
     <div class="sheet-body">
+      <div class="section-title">Категории</div>
+      <button type="button" class="plain-btn row-btn" id="settings-cats">
+        <span>🏷️ Категории расходов и доходов</span><span class="muted">›</span>
+      </button>
+
       <div class="section-title">Резервная копия</div>
       <div class="card">
         <p class="small muted" style="margin-top:0">
@@ -224,6 +229,46 @@
       </div>
     </div>
   </div>
+
+  <!-- ============ ПАНЕЛЬ: СПИСОК КАТЕГОРИЙ ============ -->
+  <div id="cats-sheet" class="sheet">
+    <div class="sheet-header">
+      <span class="link-btn"></span>
+      <div class="segmented" id="cats-type">
+        <button type="button" data-type="expense" class="active">Расходы</button>
+        <button type="button" data-type="income">Доходы</button>
+      </div>
+      <button type="button" class="link-btn bold" data-close>Готово</button>
+    </div>
+    <div class="sheet-body">
+      <p class="small muted" style="margin-top:0">Нажмите на категорию, чтобы изменить название или эмодзи. Стрелки меняют порядок.</p>
+      <div id="cats-list"></div>
+    </div>
+  </div>
+
+  <!-- ============ ПАНЕЛЬ: РЕДАКТИРОВАНИЕ КАТЕГОРИИ ============ -->
+  <form id="cat-edit-sheet" class="sheet" autocomplete="off" novalidate>
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <b id="cat-edit-title">Категория</b>
+      <button type="submit" class="link-btn bold">Готово</button>
+    </div>
+    <div class="sheet-body">
+      <div class="emoji-preview" id="cat-emoji-preview">🍔</div>
+      <label class="field">
+        <span>Название</span>
+        <input id="cat-name" type="text" placeholder="Например, Кафе" maxlength="30" enterkeyhint="done">
+      </label>
+      <label class="field">
+        <span>Свой эмодзи (впишите с клавиатуры) или выберите ниже</span>
+        <input id="cat-emoji-input" type="text" placeholder="😀">
+      </label>
+      <div class="emoji-grid" id="cat-emoji-grid"></div>
+      <p class="small muted" id="cat-usage"></p>
+      <button type="button" class="plain-btn" id="cat-restore" hidden>Вернуть в список</button>
+      <button type="button" class="danger-btn" id="cat-delete" hidden>Удалить категорию</button>
+    </div>
+  </form>
 
   <div id="toast" class="toast" role="status"></div>
 

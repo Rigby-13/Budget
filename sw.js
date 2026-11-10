@@ -7,7 +7,7 @@
 // Когда меняете список файлов — увеличьте номер версии.
 // =====================================================================
 
-const CACHE = 'budget-v2';
+const CACHE = 'budget-v3';
 const FILES = [
   './',
   './index.html',
@@ -18,6 +18,7 @@ const FILES = [
   './js/ui.js',
   './js/debts.js',
   './js/backup.js',
+  './js/categories.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',
