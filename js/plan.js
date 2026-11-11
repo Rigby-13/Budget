@@ -30,6 +30,7 @@
 // =====================================================================
 
 import * as db from './db.js';
+import { mandatoryForMonth } from './recurring.js';
 import { monthRange, daysBetween, todayISO, yesterdayISO, addDays, now } from './utils.js';
 
 export const PERIODS = {
@@ -143,6 +144,13 @@ function buildPlan(key, values, rec, extra = {}) {
  *       inherited (своей записи нет), past (месяц прошёл — копия).
  */
 export async function getPlan(key) {
+  const plan = await getPlanRaw(key);
+  // Обязательные траты — регулярные платежи, которые выпадают на этот месяц
+  if (plan) plan.mandatory = await mandatoryForMonth(key);
+  return plan;
+}
+
+async function getPlanRaw(key) {
   const cur = currentMonthKey();
   const rec = await recordFor(key);
   if (!rec) return null;
@@ -322,7 +330,8 @@ export function planSummary(plan, categories) {
   const active = activeLimits(plan, categories);
   const available = plan.income - plan.savings;
   const allocated = active.reduce((s, l) => s + monthAllocation(l, plan.month), 0);
-  return { available, allocated, free: available - allocated };
+  const mandatory = plan.mandatory || 0; // регулярные платежи
+  return { available, allocated, mandatory, free: available - allocated - mandatory };
 }
 
 /** Лимиты только по существующим, не скрытым категориям. */
@@ -337,15 +346,16 @@ export function activeLimits(plan, categories) {
 function spentIn(transactions, categoryId, from, to) {
   let s = 0;
   for (const t of transactions) {
-    if (t.type === 'expense' && t.categoryId === categoryId && t.date >= from && t.date <= to) s += t.amount;
+    // Регулярные платежи идут в «обязательные», а не в лимит категории
+    if (t.type === 'expense' && !t.recurringId && t.categoryId === categoryId && t.date >= from && t.date <= to) s += t.amount;
   }
   return s;
 }
-/** Траты в категориях без своего лимита за [from, to]. */
+/** Траты в категориях без своего лимита за [from, to] (без регулярных платежей). */
 function spentOther(transactions, limitedIds, from, to) {
   let s = 0;
   for (const t of transactions) {
-    if (t.type === 'expense' && !limitedIds.has(t.categoryId) && t.date >= from && t.date <= to) s += t.amount;
+    if (t.type === 'expense' && !t.recurringId && !limitedIds.has(t.categoryId) && t.date >= from && t.date <= to) s += t.amount;
   }
   return s;
 }
@@ -420,11 +430,18 @@ export function monthResult(plan, categories, monthTx, upto) {
     other = { allocated: free, spent, diff: free - spent };
   }
 
-  const all = [...rows, ...(other ? [other] : [])];
+  // Обязательные (регулярные) платежи: запланировано и сколько ушло
+  let mandatory = null;
+  if (finished && plan.mandatory > 0) {
+    const spentM = monthTx.filter((t) => t.type === 'expense' && t.recurringId && t.date >= from && t.date <= to).reduce((s, t) => s + t.amount, 0);
+    mandatory = { allocated: plan.mandatory, spent: spentM, diff: plan.mandatory - spentM };
+  }
+
+  const all = [...rows, ...(other ? [other] : []), ...(mandatory ? [mandatory] : [])];
   const saved = all.reduce((s, r) => s + Math.max(0, r.diff), 0);
   const over = all.reduce((s, r) => s + Math.max(0, -r.diff), 0);
   const totalSpent = monthTx.filter((t) => t.type === 'expense' && t.date <= upto).reduce((s, t) => s + t.amount, 0);
-  return { rows, other, saved, over, finished, totalSpent };
+  return { rows, other, mandatory, saved, over, finished, totalSpent };
 }
 
 // ---------------------------------------------------------------------

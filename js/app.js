@@ -22,6 +22,9 @@ import { initSavings } from './savings.js';
 import { initWallet, renderBalance } from './wallet.js';
 import { initGuide } from './guide.js';
 import { initTheme } from './theme.js';
+import {
+  initRecurring, processRecurring, renderPending, renderRecurringSettings, openRecSheet,
+} from './recurring.js';
 import { initImport } from './importer.js';
 import { initReset, renderReset } from './reset.js';
 
@@ -60,6 +63,7 @@ async function init() {
   await migrateOldLimits();
   await migratePlansToTemplates();
   await refreshCurrentSnapshot(); // запоминаем план текущего месяца на будущее
+  await processRecurring();       // внести регулярные платежи, которые подошли
   state.categories = await db.getAll('categories');
 
   // Просим браузер не удалять наши данные при нехватке места
@@ -77,6 +81,7 @@ async function init() {
   initImport();
   initReset();
   initTheme();
+  initRecurring();
   initGuide();
   initTestMode();
   await renderExpenses();
@@ -110,6 +115,7 @@ async function renderExpenses() {
   $('month-title').textContent = `${MONTHS[state.month]} ${state.year}`;
   renderDateBar();
   await renderBalance();
+  await renderPending();
 
   const { from, to } = monthRange(state.year, state.month);
   const items = await db.getTransactionsBetween(from, to);
@@ -156,7 +162,7 @@ async function renderExpenses() {
       html += `<button class="tx" data-id="${t.id}">
           <span class="tx-emoji">${c.emoji}</span>
           <span class="tx-main">
-            <div class="tx-cat">${escapeHTML(c.name)}</div>
+            <div class="tx-cat">${escapeHTML(c.name)}${t.recurringId ? ' <span class="rec-mark" title="Регулярный платёж">🔁</span>' : ''}</div>
             ${t.comment ? `<div class="tx-comment">${escapeHTML(t.comment)}</div>` : ''}
           </span>
           <span class="tx-amount ${t.type === 'income' ? 'income' : ''}">${sign}${formatMoney(t.amount)}</span>
@@ -252,6 +258,8 @@ function openTxSheet(tx = null, limitFor = null, categoryId = null, limitMonth =
   $('tx-date').value = tx ? tx.date : state.pickedDate || todayISO();
   $('tx-comment').value = tx ? tx.comment || '' : '';
   $('tx-delete').hidden = !tx;
+  $('tx-make-rec').hidden = !tx;
+  if (tx) $('tx-make-rec').textContent = tx.recurringId ? '🔁 Регулярный платёж — изменить' : '🔁 Сделать регулярной';
   // Дату и комментарий показываем сразу, только если они уже заполнены
   setExtraOpen(!!tx && !!tx.comment);
   renderDateChips();
@@ -286,6 +294,7 @@ function renderTypeToggle() {
   if (!isLimit) $('amount-wrap').hidden = false; // в лимите «по дням недели» поле суммы скрыто
   $('amount-caption').hidden = !isLimit;
   $('tx-delete').hidden = isLimit || !state.editing;
+  $('tx-make-rec').hidden = isLimit || !state.editing;
 }
 
 function renderCategoryChips() {
@@ -409,7 +418,7 @@ function switchView(name) {
   $('fab').classList.toggle('hidden', !['expenses', 'debts'].includes(name));
   if (name === 'debts') renderDebts();
   if (name === 'stats') renderStats();
-  if (name === 'settings') { renderSettings(); renderTemplatesSettings(); renderReset(); }
+  if (name === 'settings') { renderSettings(); renderTemplatesSettings(); renderReset(); renderRecurringSettings(); }
   $('view-' + name).scrollTo(0, 0);
 }
 
@@ -497,6 +506,23 @@ function bindEvents() {
     state.year = n.getFullYear(); state.month = n.getMonth();
     renderExpenses();
     $('view-expenses').scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  // Регулярные платежи изменились — перерисовываем траты, план и настройки
+  document.addEventListener('recurring-changed', async () => {
+    await renderExpenses();
+    if (state.view === 'settings') await renderRecurringSettings();
+    if (state.view === 'stats') await renderStats();
+  });
+  // «Сделать регулярной» / «изменить регулярный» из окна траты
+  $('tx-make-rec').addEventListener('click', async () => {
+    const tx = state.editing;
+    if (!tx) return;
+    if (tx.recurringId) {
+      const rec = await db.get('settings', tx.recurringId);
+      if (rec) { openRecSheet({ rec }); return; }
+    }
+    openRecSheet({ tx });
   });
 
   // Деньги изменились — обновляем баланс

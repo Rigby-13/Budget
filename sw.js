@@ -8,7 +8,7 @@
 // а старые и новые файлы никогда не смешиваются.
 // =====================================================================
 
-const VERSION = '7.1';
+const VERSION = '7.2';
 const CACHE = 'budget-v' + VERSION;
 const NETWORK_TIMEOUT = 3000; // мс: дольше ждать сеть нет смысла
 const FILES = [
@@ -34,6 +34,7 @@ const FILES = [
   './js/importpdf.js',
   './js/reset.js',
   './js/theme.js',
+  './js/recurring.js',
   './fonts/unbounded-cyrillic-700-normal.woff2',
   './fonts/unbounded-latin-700-normal.woff2',
   './manifest.webmanifest',

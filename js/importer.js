@@ -12,7 +12,8 @@
 
 import * as db from './db.js';
 import { readTable, parseDate, parseAmount } from './importparse.js';
-import { formatMoney, escapeHTML, shortDate, MONTHS } from './utils.js';
+import { findSuggestions } from './recurring.js';
+import { formatMoney, escapeHTML, shortDate, MONTHS, addDays, daysBetween } from './utils.js';
 import { $, openSheet, closeSheet, toast } from './ui.js';
 
 // ---------------------------------------------------------------------
@@ -254,12 +255,16 @@ async function prepare() {
   if (!ops.length) { st.ops = []; return; }
   const dates = ops.map((o) => o.date).sort();
   const existing = await db.getTransactionsBetween(dates[0], dates[dates.length - 1]);
+  // Регулярные платежи могли добавиться на пару дней раньше или позже банковской даты
+  const recurring = (await db.getTransactionsBetween(addDays(dates[0], -3), addDays(dates[dates.length - 1], 3))).filter((t) => t.recurringId);
   const keys = new Set(existing.map((t) => t.importKey).filter(Boolean));
   // Та же дата, тип и сумма — похоже, запись уже есть (внесена вручную или прошлым импортом)
   const same = existing.map((t) => `${t.date}|${t.type}|${t.amount}`);
   st.ops = ops.map((o) => {
     const dup = keys.has(importKey(o)) ? 'уже импортирована'
-      : same.includes(`${o.date}|${o.type}|${o.amount}`) ? 'похоже, уже есть в приложении' : null;
+      : same.includes(`${o.date}|${o.type}|${o.amount}`) ? 'похоже, уже есть в приложении'
+        : recurring.some((t) => t.type === o.type && t.amount === o.amount && Math.abs(daysBetween(t.date, o.date)) <= 3)
+          ? 'уже добавлена как регулярный платёж' : null;
     const g = guessCategory(o, st.categories, rules);
     return { ...o, categoryId: g.id, unrecognized: !g.recognized, dup, checked: !dup && !o.skip };
   });
@@ -430,6 +435,17 @@ async function doImport() {
   await saveRules(rules);
   try { localStorage.setItem('lastImport', new Date().toISOString().slice(0, 10)); } catch { /* ничего */ }
   closeSheet($('imp-sheet'));
+  // Есть повторяющиеся траты — подскажем сделать их регулярными
+  const sug = await findSuggestions();
+  if (sug.length) {
+    setTimeout(() => toast(`🔁 Похоже на регулярные: ${sug.slice(0, 2).map((x) => x.name).join(', ')}${sug.length > 2 ? '…' : ''}`, 6000, {
+      label: 'Посмотреть',
+      onClick() {
+        document.querySelector('.tab[data-view=settings]').click();
+        setTimeout(() => $('rec-card').scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+      },
+    }), 3200);
+  }
   toast(`Добавлено: ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'запись' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'записи' : 'записей'} ✓`, 3000);
   document.dispatchEvent(new Event('categories-changed')); // перерисовать траты, план, статистику
   renderImportCard();

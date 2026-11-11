@@ -7,7 +7,7 @@
 
 import * as db from './db.js';
 import {
-  formatMoney, parseMoney, moneyToInput, escapeHTML, todayISO, MONTHS, MONTHS_GEN, now,
+  formatMoney, parseMoney, moneyToInput, escapeHTML, todayISO, MONTHS, MONTHS_GEN, now, shortDate,
 } from './utils.js';
 import { $, shake, toast, actionSheet } from './ui.js';
 import {
@@ -17,6 +17,7 @@ import {
   applyTemplate, monthsUsing, getTemplate, limitLabel,
 } from './plan.js';
 import { monthCloseBlock } from './savings.js';
+import { upcoming } from './recurring.js';
 
 const BUDGET = '__budget__'; // особый «чип» — бюджет месяца
 
@@ -298,7 +299,7 @@ function renderLimitInfo() {
 
   if (plan.income > 0) {
     const s = planSummary(plan, form.categories);
-    lines.push(`<span class="plan-line">На траты: ${formatMoney(s.available)} · по лимитам: ${formatMoney(s.allocated)}</span>`);
+    lines.push(`<span class="plan-line">На траты: ${formatMoney(s.available)}${s.mandatory ? ` · обязательные: ${formatMoney(s.mandatory)}` : ''} · по лимитам: ${formatMoney(s.allocated)}</span>`);
     lines.push(s.free >= 0
       ? `<span class="plan-line">Свободно: <b class="income">${formatMoney(s.free)}</b></span>`
       : `<span class="plan-line negative">Не хватает ${formatMoney(-s.free)} — лимиты больше бюджета</span>`);
@@ -605,8 +606,9 @@ export async function renderPlanCard(viewKey, monthItems) {
   }
 
   // ---------- Подробности плана (свёрнутая секция) ----------
+  const soon = await upcoming(7);
   const head = plan.income > 0
-    ? `<div class="plan-formula">${formatMoney(plan.income)}${plan.savings ? ` − ${formatMoney(plan.savings)} в копилку` : ''}${sum.allocated ? ` − ${formatMoney(sum.allocated)} лимиты` : ''} = <b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)} свободно</b></div>`
+    ? `<div class="plan-formula">${formatMoney(plan.income)}${plan.savings ? ` − ${formatMoney(plan.savings)} в копилку` : ''}${sum.mandatory ? ` − ${formatMoney(sum.mandatory)} обязательные` : ''}${sum.allocated ? ` − ${formatMoney(sum.allocated)} лимиты` : ''} = <b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)} свободно</b></div>`
     : '';
 
   const dailyRows = daily.map((r) => `<button type="button" class="plan-row" data-plan-edit="${r.category.id}">
@@ -640,6 +642,9 @@ export async function renderPlanCard(viewKey, monthItems) {
     ${head}
     ${dailyRows ? `<div class="section-title">Лимиты в день и неделю</div>${dailyRows}` : ''}
     ${monthlyRows ? `<div class="section-title">На месяц</div>${monthlyRows}` : ''}
+    ${soon.length ? `<div class="section-title">Скоро · регулярные</div>${soon.map((u) => `<div class="plan-row soon-row">
+      <div class="plan-row-head"><span class="today-name">🔁 ${escapeHTML(u.rec.name)}</span><span class="today-val">${formatMoney(u.rec.amount)}</span></div>
+      <div class="plan-row-sub"><span>${shortDate(u.date)}</span></div></div>`).join('')}` : ''}
   </section>`;
 
   remindOncePerDay(daily);
@@ -685,7 +690,7 @@ async function renderPlanOverview(key) {
       <button type="button" class="link-btn small-link" ${edit}>Изменить</button>
     </div>
     ${plan.inherited && !plan.past ? '<p class="small muted" style="margin:0 0 6px">Тот же план, что и в прошлом месяце. Другой можно выбрать в «Изменить» → «План ▾».</p>' : ''}
-    ${plan.income > 0 ? `<div class="plan-formula">${formatMoney(plan.income)}${plan.savings ? ` − ${formatMoney(plan.savings)} в копилку` : ''}${sum.allocated ? ` − ${formatMoney(sum.allocated)} лимиты` : ''} = <b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)} свободно</b></div>` : ''}
+    ${plan.income > 0 ? `<div class="plan-formula">${formatMoney(plan.income)}${plan.savings ? ` − ${formatMoney(plan.savings)} в копилку` : ''}${sum.mandatory ? ` − ${formatMoney(sum.mandatory)} обязательные` : ''}${sum.allocated ? ` − ${formatMoney(sum.allocated)} лимиты` : ''} = <b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)} свободно</b></div>` : ''}
     ${rows ? `<div class="section-title">Лимиты</div>${rows}` : ''}
   </section>`;
 }

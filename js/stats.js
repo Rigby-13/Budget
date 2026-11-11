@@ -263,6 +263,7 @@ async function renderPlan(categories, range) {
     html += `<div class="plan-table">
       <div><span>Бюджет</span><b>${formatMoney(plan.income)}</b></div>
       <div><span>В копилку</span><b>${formatMoney(plan.savings)}</b></div>
+      ${sum.mandatory ? `<div><span>Обязательные</span><b>${formatMoney(sum.mandatory)}</b></div>` : ''}
       <div><span>По лимитам</span><b>${formatMoney(sum.allocated)}</b></div>
       <div><span>Свободно</span><b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)}</b></div>
     </div>`;
@@ -294,6 +295,7 @@ async function renderPlan(categories, range) {
   html += res.rows.map((r) => row(r.category.emoji, r.category.name,
     limitLabel(r.limit, formatMoney), r)).join('');
   if (res.other) html += row('🧺', 'Остальные траты', 'свободные деньги', res.other);
+  if (res.mandatory) html += row('🔁', 'Обязательные', 'регулярные платежи', res.mandatory);
   if (!res.finished) {
     html += '<p class="small muted" style="margin:8px 0 0">Месячные лимиты и «остальные траты» подводятся в конце месяца. Сегодняшний день войдёт в итоги завтра.</p>';
   } else if (plan.income > 0) {
