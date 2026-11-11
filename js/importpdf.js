@@ -99,16 +99,54 @@ function cleanDescription(s) {
 }
 
 // ---------------------------------------------------------------------
+// Т-Банк
+// ---------------------------------------------------------------------
+// «25.09.26 21:32 26.09.26 Оплата в OZON Moskva RU 641.00 ₽ 641.00 ₽»
+// «20.09.26 20.09.26 Пополнение. Система быстрых платежей + 4 000.00 ₽ + 4 000.00 ₽»
+// (дата и время операции, дата обработки, описание, сумма операции, сумма в валюте счёта;
+//  «+» с пробелом перед суммой — пополнение; описание может переноситься на следующую строку)
+const TB_AMOUNT = '([+−-] ?)?(\\d{1,3}(?: \\d{3})*\\.\\d{2}) ₽';
+const TB_MAIN = new RegExp(`^(\\d{2}\\.\\d{2}\\.\\d{2,4})(?: \\d{2}:\\d{2})? \\d{2}\\.\\d{2}\\.\\d{2,4} (.+?) ${TB_AMOUNT} ${TB_AMOUNT}$`);
+const TB_STOP = /^(Дата и время|операции|Операции по карте|Расходы|Поступления|Баланс|Итого|Страница|•)/i;
+
+function parseTbank(lines) {
+  const ops = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(TB_MAIN);
+    if (!m) continue;
+    const [, d, desc, , , sign, amountText] = m;
+    let description = desc;
+    for (let j = i + 1; j < lines.length && j < i + 4; j++) {
+      const l = lines[j];
+      if (TB_MAIN.test(l) || TB_STOP.test(l) || parseDate(l) && /^\d{2}\.\d{2}\.\d{2}/.test(l) || l.length > 70) break;
+      description += ' ' + l;
+    }
+    const value = parseAmount(amountText);
+    if (!value) continue;
+    ops.push({
+      date: parseDate(d),
+      type: sign && sign.trim() === '+' ? 'income' : 'expense',
+      amount: Math.abs(value),
+      bankCategory: '',
+      description: cleanDescription(description.replace(/^Оплата в\s+/i, '')),
+    });
+  }
+  return ops;
+}
+
+// ---------------------------------------------------------------------
 // Общий вариант для других банков: строка с датой и суммой
 // ---------------------------------------------------------------------
 function parseGeneric(lines) {
   const ops = [];
   // Сумма: 1 234,56 / -1234.56 / +45 000,00 — не часть даты и не часть другого числа
-  const amountRe = /(?<![\d.,])[+−-]?\d{1,3}(?:[\s\u00a0]\d{3})*[.,]\d{2}(?![\d.,])/g;
+  // знак может стоять через пробел: «+ 4 000.00»
+  const amountRe = /(?<![\d.,])(?:[+−-]\s?)?\d{1,3}(?:[\s\u00a0]\d{3})*[.,]\d{2}(?![\d.,])/g;
+  const summary = /^(•\s*)?(Баланс|Остаток|Итого|Поступления|Расходы|Списания|Пополнения|Кэшбэк)\b/i;
   let anySign = false;
   for (const line of lines) {
     const date = parseDate(line);
-    if (!date) continue;
+    if (!date || summary.test(line)) continue; // «Баланс на 20.09.26 4 137.61 ₽» — не операция
     // Сначала убираем даты и время, чтобы «01.10» не приняли за сумму
     const rest = line
       .replace(/\b\d{2}\.\d{2}\.\d{2,4}\b/g, ' ')
@@ -116,15 +154,16 @@ function parseGeneric(lines) {
     const amounts = rest.match(amountRe);
     if (!amounts) continue;
     // Если сумм несколько — последняя обычно остаток, берём первую
-    const text = amounts[0].trim();
+    const text = amounts[0].trim().replace(/\s+/g, ' ');
     const value = parseAmount(text);
     if (!value) continue;
     if (/^[+−-]/.test(text)) anySign = true;
-    const description = cleanDescription(rest.replace(amountRe, ' '));
+    const description = cleanDescription(rest.replace(amountRe, ' ').replace(/₽|\bRU[BR]\b/g, ' '));
     ops.push({ date, amount: Math.abs(value), description, bankCategory: '', raw: text });
   }
   // Есть знаки: «+» — пополнение, остальное — траты. Знаков нет — всё траты.
   for (const o of ops) o.type = anySign && o.raw.startsWith('+') ? 'income' : 'expense';
+  for (const o of ops) delete o.raw;
   return ops;
 }
 
@@ -142,6 +181,10 @@ export async function readPdf(buf) {
   if (/сбер/i.test(text) && /Расшифровка операций/i.test(text)) {
     const ops = parseSber(lines);
     if (ops.length) return { ops, format: 'PDF · Сбербанк' };
+  }
+  if (/Выписка по договору/i.test(text) && /Дата и время/i.test(text)) {
+    const ops = parseTbank(lines);
+    if (ops.length) return { ops, format: 'PDF · Т-Банк' };
   }
   const ops = parseGeneric(lines);
   if (!ops.length) throw new Error('Не нашёл в PDF операций. Пришлите пример разработчику — добавим формат вашего банка.');
