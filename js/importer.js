@@ -74,6 +74,15 @@ const BAD_STATUS = ['failed', 'отклон', 'отмен', 'declin', 'error', '
 const OWN_TRANSFER = ['между своими', 'между собственными', 'между счетами', 'на свой счет', 'на свой счёт', 'перевод себе',
   'погашение од', 'погашение основного долга', 'собственных средств'];
 
+// Снятие и внесение наличных — не трата и не доход: деньги остаются у вас
+const CASH = ['снятие наличных', 'внесение наличных', 'выдача наличных', 'взнос наличных', 'пополнение через банкомат', 'atm'];
+const skipReason = (text) => {
+  const low = text.toLowerCase();
+  if (OWN_TRANSFER.some((w) => low.includes(w))) return 'перевод между своими счетами';
+  if (CASH.some((w) => (w === 'atm' ? /\batm\b/.test(low) : low.includes(w)))) return 'снятие или внесение наличных — это не трата';
+  return null;
+};
+
 // Категории банка, которые ничего не говорят (у Альфы почти всё — «Прочие операции»)
 const MEANINGLESS_CATEGORY = /^(прочие операции|прочие расходы|прочее|другое|разное)$/i;
 
@@ -99,7 +108,7 @@ function enrich(o) {
   if (cat) { o.bankCategory = cat[1].trim(); d = cat[2].trim(); }
   if (o.bankCategory && MEANINGLESS_CATEGORY.test(String(o.bankCategory).trim())) o.bankCategory = '';
   // Хвосты из номеров документов и реквизитов: «…по постановлению 1881057726… 0310064300…»
-  d = d.replace(/\s*(по постановлению|дог\.?|договор)?\s*[\w#№]*\d{10,}.*$/i, '').trim() || d;
+  d = d.replace(/\s*(по постановлению)?\s*[\w#№+]*\d{10,}.*$/i, '').replace(/[\s+,.:;-]+$/, '').trim() || d;
   o.description = d.slice(0, 120);
   return o;
 }
@@ -150,8 +159,7 @@ export function toOperations(rows, det) {
     ops.push({
       date, signed: value, amount: Math.abs(value), description, bankCategory, pending,
       mcc: cols.mcc !== undefined ? String(r[cols.mcc] || '').trim() : '',
-      skip: BAD_STATUS.some((w) => status.includes(w)) ? 'отклонена'
-        : OWN_TRANSFER.some((w) => low.includes(w)) ? 'перевод между своими счетами' : null,
+      skip: BAD_STATUS.some((w) => status.includes(w)) ? 'отклонена' : skipReason(low),
     });
   }
   // Все суммы положительные и нет колонок прихода/расхода — значит, это траты
@@ -166,9 +174,11 @@ export function toOperations(rows, det) {
 // Ключевые слова → в какую категорию (берётся первая из списка, которая у вас есть).
 // Порядок важен: сначала переводы и подписки, потом остальное.
 const KEYWORDS = [
-  [['Переводы'], ['перевод', 'сбп', 'transfer']],
+  [['Комиссии', 'Другое'], ['комиссия', 'комиссии']],
+  [['Кэшбэк', 'Подарок', 'Другое'], ['кэшбэк', 'кешбэк', 'cashback']],
+  [['Переводы'], ['перевод', 'сбп', 'быстрых платежей', 'других кредитных организац', 'transfer']],
   [['Зарплата'], ['зарплат', 'заработн', 'аванс', 'salary']],
-  [['Подписки', 'Развлечения'], ['подписк', 'кинопоиск', 'яндекс плюс', 'yandex plus', 'okko', 'ivi', 'spotify', 'apple.com', 'itunes', 'google play', 'netflix', 'youtube', 'chatgpt', 'openai', 'neurabot', 'нейросет', 'vk музыка', 'звук']],
+  [['Подписки', 'Развлечения'], ['плата за сервис', 'т-банк pro', 'tinkoff pro', 'подписк', 'кинопоиск', 'яндекс плюс', 'yandex plus', 'okko', 'ivi', 'spotify', 'apple.com', 'itunes', 'google play', 'netflix', 'youtube', 'chatgpt', 'openai', 'neurabot', 'нейросет', 'vk музыка', 'звук']],
   [['Рестораны', 'Еда/Напитки', 'Еда'], ['ресторан', 'кафе', 'кофе', 'coffee', 'фастфуд', 'vkusno', 'вкусно', 'kfc', 'rostic', 'бургер', 'burger', 'макдон', 'mcdonald', 'додо', 'шоколадниц', 'пекарн', 'яндекс еда', 'delivery club', 'суши', 'пицц', 'бар ']],
   [['Продукты', 'Еда/Напитки', 'Еда'], ['супермаркет', 'продукт', 'пятерочк', 'пятёрочк', 'pyaterochka', 'магнит', 'magnit', 'перекрест', 'perekrestok', 'вкусвилл', 'vkusvill', 'лента', 'ашан', 'auchan', 'дикси', 'окей', 'metro', 'spar', 'самокат', 'samokat', 'яндекс лавка', 'лавка', 'globus', 'глобус', 'bianchi']],
   [['Транспорт'], ['fasten', 'yandex 4121', 'strelkacard', 'transport', 'транспорт', 'такси', 'taxi', 'yandex*taxi', 'яндекс go', 'yandex go', 'uber', 'метро', 'мосметро', 'тройка', 'автобус', 'азс', 'топливо', 'бензин', 'лукойл', 'роснефть', 'газпромнефть', 'каршеринг', 'делимобиль', 'ситидрайв', 'ржд', 'аэрофлот', 'парковк']],
@@ -247,10 +257,7 @@ async function prepare() {
   st.categories = await db.getAll('categories');
   const ops = (st.pdfOps ? st.pdfOps.map((o) => ({ ...o })) : toOperations(st.rows, st.det)).map(enrich);
   for (const o of ops) {
-    if (!o.skip) {
-      const low = `${o.description} ${o.bankCategory}`.toLowerCase();
-      o.skip = OWN_TRANSFER.some((w) => low.includes(w)) ? 'перевод между своими счетами' : null;
-    }
+    if (!o.skip) o.skip = skipReason(`${o.description} ${o.bankCategory}`);
   }
   if (!ops.length) { st.ops = []; return; }
   const dates = ops.map((o) => o.date).sort();
