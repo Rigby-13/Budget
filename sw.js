@@ -8,7 +8,7 @@
 // а старые и новые файлы никогда не смешиваются.
 // =====================================================================
 
-const VERSION = '7.4';
+const VERSION = '8.0';
 const CACHE = 'budget-v' + VERSION;
 const NETWORK_TIMEOUT = 3000; // мс: дольше ждать сеть нет смысла
 const FILES = [
@@ -24,7 +24,8 @@ const FILES = [
   './js/categories.js',
   './js/stats.js',
   './js/plan.js',
-  './js/planui.js',
+  './js/budget.js',
+  './js/budgetui.js',
   './js/testmode.js',
   './js/savings.js',
   './js/wallet.js',

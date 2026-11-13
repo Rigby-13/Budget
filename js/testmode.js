@@ -4,14 +4,14 @@
 //
 //  • Отдельная база данных: настоящие записи не трогаются.
 //  • «Машина времени»: можно перематывать дни вперёд и назад.
-//  • «Заполнить примером»: план 20 000 ₽, копилка 5 000 ₽, лимиты
+//  • «Заполнить примером»: план с целями и назначенными суммами
 //    и случайные траты с начала месяца по вчерашний день.
 // =====================================================================
 
 import * as db from './db.js';
 import { isTestMode, todayISO, addDays, shortDate, now } from './utils.js';
 import { $, toast } from './ui.js';
-import { currentMonthKey, monthBounds, newTemplate, saveTemplate, applyTemplate } from './plan.js';
+import { currentMonthKey, monthBounds, setAssignedMany } from './budget.js';
 
 function setLS(key, value) {
   try {
@@ -117,19 +117,17 @@ async function fillExample() {
   const ai = await ensure(['Подписки', 'Нейросети'], '💳');
   const fun = await ensure(['Покупки', 'Развлечения'], '🛒');
 
-  // Шаблон «Пример» — выбран на текущий месяц
+  // План «Пример»: цели и назначенные суммы на текущий месяц
   const key = currentMonthKey();
   const { from } = monthBounds(key);
-  const t = {
-    ...newTemplate('Пример'), income: 2000000, savings: 500000,
-    limits: [
-      { categoryId: transport.id, period: 'month', amount: 200000 },
-      { categoryId: ai.id, period: 'month', amount: 200000 },
-      { categoryId: food.id, period: 'week', amount: 210000 },
-    ],
-  };
-  await saveTemplate(t);
-  await applyTemplate(key, t.id);
+  const setCat = async (c, group, target) => db.put('categories', { ...c, group, target });
+  await setCat(transport, 'g-daily', { type: 'month', amount: 200000 });
+  await setCat(ai, 'g-must', { type: 'month', amount: 200000 });
+  await setCat(food, 'g-daily', { type: 'week', amount: 210000 });
+  await setAssignedMany(key, { [transport.id]: 200000, [ai.id]: 200000, [food.id]: 900000 });
+  if (!(await db.get('settings', 'wallet'))) {
+    await db.put('settings', { id: 'wallet', amount: 3000000, date: from, ts: 0 });
+  }
 
   // Случайные траты по вчерашний день
   const today = todayISO();

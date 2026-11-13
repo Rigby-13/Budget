@@ -1107,3 +1107,171 @@ html, body { touch-action: manipulation; }
 .nudge-btns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .nudge-btns button { min-height: 40px; padding: 8px 4px; font-size: 14px; }
 .nudge-card .small-link { align-self: center; }
+
+/* =====================================================================
+   8.0: план конвертами (вкладка «План»)
+   ===================================================================== */
+:root {
+  --warn: #b86e00;
+  --pill-ok-bg: #dcf5e3; --pill-ok-fg: #17703a;
+  --pill-warn-bg: #fff0c7; --pill-warn-fg: #7a5000;
+  --pill-bad-bg: #ffe1df; --pill-bad-fg: #b3261e;
+  --pill-zero-bg: #eeeef0; --pill-zero-fg: #5f5f64;
+}
+:root[data-theme="dark"] {
+  --warn: #ffb340;
+  --pill-ok-bg: #1d3a27; --pill-ok-fg: #5fdc85;
+  --pill-warn-bg: #3d3110; --pill-warn-fg: #ffcc4d;
+  --pill-bad-bg: #45201e; --pill-bad-fg: #ff8a80;
+  --pill-zero-bg: #2c2c2e; --pill-zero-fg: #c7c7cc;
+}
+:root[data-style="forest"][data-theme="light"] {
+  --pill-ok-bg: #d5efe0; --pill-ok-fg: #1e6b43; --pill-warn-bg: #ffe9cc; --pill-warn-fg: #8a4b00;
+  --pill-bad-bg: #ffe0dc; --pill-bad-fg: #b0261f; --pill-zero-bg: #e2ece5; --pill-zero-fg: #4d6457;
+}
+:root[data-style="forest"][data-theme="dark"] {
+  --pill-ok-bg: #7fd1a6; --pill-ok-fg: #0d2418; --pill-warn-bg: #ffb35c; --pill-warn-fg: #2a1500;
+  --pill-bad-bg: #ff6b6b; --pill-bad-fg: #2a0505; --pill-zero-bg: #24493a; --pill-zero-fg: #cfe0d6;
+}
+:root[data-style="garden"][data-theme="light"] {
+  --pill-ok-bg: #e3f4cc; --pill-ok-fg: #2f6b12; --pill-warn-bg: #fff0c2; --pill-warn-fg: #7a4d00;
+  --pill-bad-bg: #ffe0ea; --pill-bad-fg: #b0174a; --pill-zero-bg: #f2ece2; --pill-zero-fg: #5f5a6b;
+}
+:root[data-style="garden"][data-theme="dark"] {
+  --pill-ok-bg: #b6e35a; --pill-ok-fg: #0f1a00; --pill-warn-bg: #ffc93c; --pill-warn-fg: #1a0a24;
+  --pill-bad-bg: #ff5f8f; --pill-bad-fg: #1a0a24; --pill-zero-bg: #23232e; --pill-zero-fg: #c9c9d6;
+}
+
+/* Карточка «Готово к распределению» */
+.rta-card { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; margin-bottom: 10px; }
+.rta-amount { font-size: 36px; font-weight: 700; letter-spacing: -0.8px; line-height: 1.15; color: var(--pill-ok-fg); }
+.rta-card.neg .rta-amount { color: var(--danger); }
+.rta-card.done .rta-amount { color: var(--text); }
+.rta-sub, .rta-text { font-size: 13px; color: var(--muted); margin: 0; }
+.rta-text { font-size: 15px; color: var(--text); margin: 4px 0; }
+.rta-btn {
+  margin-top: 10px; min-height: 44px; padding: 0 18px; border-radius: 12px;
+  background: var(--accent); color: var(--on-accent); font-size: 16px; font-weight: 600;
+}
+.rta-btn:active { opacity: 0.7; }
+.rta-past { display: flex; gap: 28px; margin: 6px 0 4px; }
+.rta-past div { display: flex; flex-direction: column; }
+.rta-past small { color: var(--muted); font-size: 13px; }
+.rta-past b { font-size: 22px; }
+:root[data-style="forest"] .rta-card, :root[data-style="garden"] .rta-card {
+  background: var(--deco-bg); color: var(--deco-text); border-radius: 26px; padding: 18px 20px;
+}
+:root[data-style="forest"] .rta-card .hero-label, :root[data-style="garden"] .rta-card .hero-label,
+:root[data-style="forest"] .rta-sub, :root[data-style="garden"] .rta-sub,
+:root[data-style="forest"] .rta-past small, :root[data-style="garden"] .rta-past small { color: var(--deco-text); opacity: 0.8; }
+:root[data-style="forest"] .rta-text, :root[data-style="garden"] .rta-text { color: var(--deco-text); }
+:root[data-style="forest"] .rta-amount, :root[data-style="garden"] .rta-amount {
+  color: var(--deco-text); font-family: 'Unbounded', -apple-system, system-ui, sans-serif; font-size: 32px; letter-spacing: -1px;
+}
+:root[data-style="forest"] .rta-card.neg .rta-amount, :root[data-style="garden"] .rta-card.neg .rta-amount { color: #7a0d0d; }
+:root[data-style="forest"] .rta-btn, :root[data-style="garden"] .rta-btn { background: var(--deco-text); color: #fff3e8; border-radius: 14px; }
+
+/* Перерасход — «Покрыть» */
+.bud-over {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  background: var(--pill-bad-bg); color: var(--pill-bad-fg); border-radius: 14px; padding: 8px 10px 8px 14px;
+  font-size: 14px; font-weight: 600;
+}
+.bud-over span { flex: 1; min-width: 0; }
+.bud-over button {
+  min-height: 36px; padding: 0 14px; border-radius: 10px; background: var(--danger); color: #fff; font-weight: 700; font-size: 14px;
+}
+:root[data-style="forest"][data-theme="dark"] .bud-over, :root[data-style="garden"][data-theme="dark"] .bud-over { background: rgba(255, 107, 107, 0.16); color: var(--danger); }
+:root[data-style="forest"][data-theme="dark"] .bud-over button, :root[data-style="garden"][data-theme="dark"] .bud-over button { color: #1a0505; }
+
+/* Группы и строки */
+.bud-cols { display: flex; justify-content: flex-end; font-size: 11px; letter-spacing: 0.6px; color: var(--muted); margin: 14px 6px 4px; }
+.bud-cols span:first-child { width: 72px; text-align: right; }
+.bud-cols span:last-child { width: 96px; text-align: right; }
+.bud-ghead {
+  display: flex; justify-content: space-between; width: 100%; padding: 8px 6px 6px;
+  font-size: 12px; letter-spacing: 0.8px; font-weight: 600; color: var(--muted);
+}
+.bud-ghead:active { opacity: 0.6; }
+.bud-list { background: var(--card); border-radius: 16px; overflow: hidden; margin-bottom: 8px; }
+:root[data-style="forest"] .bud-list, :root[data-style="garden"] .bud-list { border-radius: 22px; }
+.bud-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; text-align: left; color: var(--text);
+}
+.bud-row + .bud-row { border-top: 0.5px solid var(--line); }
+.bud-row:active { background: var(--chip); }
+.bud-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.bud-name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bud-sub { font-size: 12px; color: var(--muted); }
+.bud-sub.bad { color: var(--pill-bad-fg); }
+.bud-sub.warn { color: var(--pill-warn-fg); }
+:root[data-theme="dark"] .bud-sub.bad { color: var(--danger); }
+:root[data-theme="dark"] .bud-sub.warn { color: var(--warn); }
+.bud-bar { display: block; height: 5px; border-radius: 3px; background: var(--chip); overflow: hidden; }
+.bud-bar i { display: block; height: 100%; border-radius: 3px; background: var(--income); }
+.bud-bar.warn i { background: var(--warn); }
+.bud-bar.bad i { background: var(--danger); }
+.bud-bar.zero i { background: var(--muted); }
+.bud-asg { width: 62px; text-align: right; font-size: 14px; color: var(--muted); flex: none; }
+.bud-pill {
+  min-width: 84px; padding: 5px 8px; border-radius: 999px; text-align: center; font-size: 14px; font-weight: 700; flex: none;
+  background: var(--pill-ok-bg); color: var(--pill-ok-fg);
+}
+.bud-pill.warn { background: var(--pill-warn-bg); color: var(--pill-warn-fg); }
+.bud-pill.bad { background: var(--pill-bad-bg); color: var(--pill-bad-fg); }
+.bud-pill.zero { background: var(--pill-zero-bg); color: var(--pill-zero-fg); }
+.bud-empty { padding: 12px 14px; }
+.bud-add-group { display: block; margin: 6px auto 4px; }
+.bud-help { text-align: center; margin: 8px 12px 0; }
+
+/* Строка «План» на главном */
+.plan-link {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin-bottom: 14px;
+  padding: 12px 14px; font-size: 15px; color: var(--text);
+}
+.plan-link .pl-r { flex: 1; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.plan-link .pl-r small { font-size: 12px; color: var(--muted); }
+.plan-link .pl-r b { font-size: 17px; }
+.plan-link .pl-ok { color: var(--pill-ok-fg); }
+:root[data-theme="dark"] .plan-link .pl-ok { color: var(--income); }
+.plan-link .chev { color: var(--muted); }
+.plan-link:active { opacity: 0.7; }
+
+/* Окно категории */
+.bc-quick { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; justify-content: center; }
+.bc-quick button {
+  display: flex; flex-direction: column; align-items: center; padding: 6px 12px; border-radius: 12px;
+  background: var(--card); border: 1.5px solid var(--line); min-height: 44px;
+}
+.bc-quick small { font-size: 11px; color: var(--muted); }
+.bc-quick b { font-size: 14px; color: var(--accent); }
+.bc-info { margin-bottom: 10px; }
+#bc-move { width: 100%; margin-bottom: 4px; }
+.bc-ttype button { padding: 6px 4px; font-size: 13px; }
+.bc-groups { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.bc-groups button {
+  min-height: 40px; padding: 0 14px; border-radius: 12px; background: var(--card);
+  border: 2px solid transparent; font-size: 15px;
+}
+.bc-groups button.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+/* Перенос денег */
+.sheet-header-gap { width: 60px; }
+.bm-card { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.bm-list { padding: 0; overflow: hidden; margin-bottom: 12px; }
+.bm-opt { display: flex; align-items: center; gap: 10px; padding: 12px 14px; min-height: 52px; }
+.bm-opt + .bm-opt { border-top: 0.5px solid var(--line); }
+.bm-opt input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
+.bm-e { font-size: 19px; }
+.bm-n { flex: 1; font-weight: 600; min-width: 0; }
+.bm-a { color: var(--pill-ok-fg); font-weight: 600; }
+:root[data-theme="dark"] .bm-a { color: var(--income); }
+.bm-amount-row input {
+  width: 140px; text-align: right; font: inherit; font-size: 20px; font-weight: 700; border: 0; background: none; color: var(--text); padding: 0;
+}
+.bm-amount-row input:focus { outline: none; }
+
+/* «Ещё»: долги */
+.debts-row { margin-bottom: 18px; }
+.back-btn { font-size: 32px; }
+.sav-note { margin: 0 4px 14px; }
