@@ -413,7 +413,7 @@ async function addGroup() {
 // ГЛАВНЫЙ ЭКРАН: «Сегодня можно» и строка плана
 // =====================================================================
 /** Возвращает id категорий с целью «в день/в неделю» (их ставим первыми в «+»). */
-export async function renderHome(isCurrentMonth) {
+export async function renderHome(isCurrentMonth, starting = false) {
   const hero = $('today-hero');
   const link = $('plan-card');
   if (!isCurrentMonth) { hero.innerHTML = ''; link.innerHTML = ''; return []; }
@@ -462,7 +462,7 @@ export async function renderHome(isCurrentMonth) {
         <span class="hero-sub">${fmt(avail)} в повседневных категориях на ${left} ${plural(left, 'день', 'дня', 'дней')}</span>
       </button>
     </section>`;
-  } else if (!b.started) {
+  } else if (!b.started && !starting) {
     hero.innerHTML = `<button type="button" class="card hero hero-empty" data-go-plan>
       <span class="hero-label">Сколько можно тратить?</span>
       <span class="hero-cta">Распределите деньги по категориям →</span>

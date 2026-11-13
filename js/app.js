@@ -19,7 +19,7 @@ import {
 } from './budgetui.js';
 import { initTestMode } from './testmode.js';
 import { initSavings } from './savings.js';
-import { initWallet, renderBalance } from './wallet.js';
+import { initWallet, renderBalance, getWallet, openWalletSheet } from './wallet.js';
 import { initGuide } from './guide.js';
 import { initTheme } from './theme.js';
 import {
@@ -132,7 +132,10 @@ function categoryById(id) {
 async function renderExpenses() {
   $('month-title').textContent = `${MONTHS[state.month]} ${state.year}`;
   renderDateBar();
+  const starting = await renderStartCard();
   await renderBalance();
+  // Пока не указаны деньги, карточка «Мои деньги» дублирует первый шаг — прячем
+  $('balance-card').hidden = starting && !(await getWallet());
   await renderPending();
   await renderNudge();
 
@@ -151,15 +154,20 @@ async function renderExpenses() {
   $('sum-balance').textContent = (balance > 0 ? '+' : '') + formatMoney(balance);
 
   // «Сегодня можно» и строка плана (только в текущем месяце)
-  state.dailyIds = await renderHome(viewKey() === currentMonthKey());
+  state.dailyIds = await renderHome(viewKey() === currentMonthKey(), starting);
   renderDetails(expense);
+  $('month-details').hidden = !items.length; // пустой месяц — без «Итогов»
 
   // Сортировка: новые сверху
   items.sort((a, b) => (b.date.localeCompare(a.date)) || (b.createdAt - a.createdAt));
 
   const list = $('tx-list');
   if (!items.length) {
-    list.innerHTML = `<div class="empty">В этом месяце пока нет записей.<br>Нажмите «+», чтобы добавить первую трату.</div>`;
+    list.innerHTML = `<div class="empty empty-tx">
+      <span class="empty-icon">🧾</span>
+      <b>Здесь появятся ваши траты</b>
+      <span>Купили что-то — нажмите <span class="plus-mark">+</span> внизу справа</span>
+    </div>`;
     return;
   }
 
@@ -271,6 +279,41 @@ async function renderNudge() {
     </div>
     <button type="button" class="link-btn small-link" data-nudge="none">Ничего не тратил</button>
   </section>`;
+}
+
+// =====================================================================
+// «С чего начать»: 3 шага для нового пользователя
+// =====================================================================
+function startHidden() {
+  try { return localStorage.getItem('startHidden') === '1'; } catch { return false; }
+}
+/** true — карточка показана. */
+async function renderStartCard() {
+  const box = $('start-card');
+  const n = now();
+  const isCurrent = state.year === n.getFullYear() && state.month === n.getMonth();
+  const settings = await db.getAll('settings');
+  const steps = [
+    { id: 'wallet', done: settings.some((x) => x.id === 'wallet'), title: 'Укажите, сколько у вас денег', sub: 'все карты и наличные вместе' },
+    { id: 'plan', done: settings.some((x) => x.id.startsWith('asg:') && Object.keys(x.amounts || {}).length), title: 'Распределите их по категориям', sub: 'во вкладке «План»' },
+    { id: 'tx', done: (await db.getAll('transactions')).length > 0, title: 'Запишите первую трату', sub: 'или загрузите выписку из банка' },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  if (!isCurrent || startHidden() || doneCount === steps.length) { box.innerHTML = ''; return false; }
+  const next = steps.find((s) => !s.done);
+  box.innerHTML = `<section class="card start-card">
+    <div class="start-head">
+      <div><b>С чего начать</b><span>${doneCount} из 3 готово</span></div>
+      <button type="button" class="link-btn small-link" data-start="hide">Скрыть</button>
+    </div>
+    <div class="start-bar"><i style="width:${Math.round((doneCount / 3) * 100)}%"></i></div>
+    ${steps.map((s, i) => `<button type="button" class="start-step ${s.done ? 'done' : ''} ${s === next ? 'next' : ''}" data-start="${s.id}">
+      <span class="start-num">${s.done ? '✓' : i + 1}</span>
+      <span class="start-text"><b>${s.title}</b><small>${s.sub}</small></span>
+      ${s.done ? '' : '<span class="start-chev">›</span>'}
+    </button>`).join('')}
+  </section>`;
+  return true;
 }
 
 /** Выбрать день: переходим в его месяц, «+» будет записывать на этот день. */
@@ -535,6 +578,19 @@ function bindEvents() {
   });
 
   $('tx-more').addEventListener('click', () => setExtraOpen(true));
+  // «С чего начать»
+  $('start-card').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-start]');
+    if (!b || b.classList.contains('done')) return;
+    const act = b.dataset.start;
+    if (act === 'wallet') openWalletSheet();
+    if (act === 'plan') { setPlanMonth(currentMonthKey()); switchView('plan'); }
+    if (act === 'tx') openTxSheet();
+    if (act === 'hide') {
+      try { localStorage.setItem('startHidden', '1'); } catch { /* ничего */ }
+      renderExpenses();
+    }
+  });
   // Карточка «Вчера ничего не записано»
   $('nudge').addEventListener('click', (e) => {
     const b = e.target.closest('[data-nudge]');
