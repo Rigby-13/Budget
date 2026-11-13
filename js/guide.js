@@ -1,147 +1,252 @@
 // =====================================================================
-// guide.js — гайд при первом открытии: с чего начать и как пользоваться.
-// Карточки листаются свайпом или кнопкой «Далее», есть «Пропустить».
-// Показывается один раз; заново — Настройки → «Как пользоваться».
+// guide.js — пошаговый тур по интерфейсу.
+// Затемняем экран, подсвечиваем нужную кнопку или карточку и рядом
+// объясняем, что это. «Далее» / «Назад», можно пропустить.
+// Показывается один раз; заново — «Ещё» → «Как пользоваться».
 // =====================================================================
 
-import { $ } from './ui.js';
-import { openWalletSheet } from './wallet.js';
+import { $, closeSheets } from './ui.js';
+import { openWalletSheet, getWallet } from './wallet.js';
 
-const SLIDES = [
+const KEY = 'tourDone';
+const tab = (name) => document.querySelector(`.tab[data-view=${name}]`).click();
+const openPlus = () => {
+  $('fab').click();
+  // Тур — не время для клавиатуры: убираем курсор из поля суммы
+  setTimeout(() => document.activeElement?.blur(), 50);
+  setTimeout(() => document.activeElement?.blur(), 400);
+};
+
+/**
+ * Шаги тура.
+ *  view   — какую вкладку открыть
+ *  sel    — что подсветить (нет — подсказка по центру)
+ *  before — что сделать перед шагом (например, открыть «+»)
+ */
+const STEPS = [
   {
-    emoji: '💸',
-    title: 'Привет!',
-    text: 'Это приложение помогает понять главное: <b>сколько можно потратить сегодня</b>, чтобы уложиться в бюджет.',
-    note: 'Все данные хранятся только на этом телефоне и работают без интернета.',
+    view: 'expenses', title: 'Привет! 👋',
+    text: 'Покажу, как всё устроено — это займёт минуту. Данные хранятся только на этом телефоне и работают без интернета.',
   },
   {
-    emoji: '💰',
-    title: 'Укажите свои деньги',
-    text: 'Нажмите на карточку <b>«Мои деньги»</b> на главном экране и введите, сколько у вас сейчас: все карты и наличные вместе, без копилки.',
-    mock: `<div class="g-mock"><span class="muted small">Мои деньги</span><b class="g-big">21 500 ₽</b><span class="muted small">🐷 в копилке 3 000 ₽</span></div>`,
-    note: 'Дальше остаток считается сам: + доходы, − траты.',
+    view: 'expenses', sel: '#balance-card', title: 'Мои деньги',
+    text: 'Нажмите сюда и укажите, сколько у вас денег сейчас — все карты и наличные вместе. Дальше остаток считается сам: + доходы, − траты.',
   },
   {
-    emoji: '📋',
-    title: 'Составьте план',
-    text: 'Вкладка <b>«План»</b>: распределите деньги, которые у вас есть, по категориям. Остаток категории переходит на следующий месяц.',
-    mock: `<div class="g-mock small">Готово к распределению <b>2 300 ₽</b><br>🍔 Еда: цель <b>300 ₽ в день</b></div>`,
-    note: 'Цель «в день» даёт «Сегодня можно» на главном экране.',
+    view: 'expenses', sel: '#fab', title: 'Купил — сразу записал',
+    text: 'Главная кнопка. Нажимайте «+» сразу после покупки — так ничего не забудется.',
   },
   {
-    emoji: '⚡',
-    title: 'Купил — сразу записал',
-    text: 'Нажмите <b>«+»</b> или карточку <b>«Сегодня можно»</b>, введите сумму и «Готово». Ошиблись — нажмите «Отменить» в сообщении.',
-    mock: `<div class="g-mock"><span class="muted small">Сегодня можно</span><b class="g-big">250 ₽</b><span class="progress big limit-bar ok"><i style="width:40%"></i></span><span class="muted small">🍔 Еда · 300 ₽ в день</span></div>`,
+    view: 'expenses', before: openPlus, sel: '#amount-wrap', title: 'Сумма',
+    text: 'Введите, сколько потратили. Сверху можно переключить «Расход» и «Доход».',
   },
   {
-    emoji: '🔁',
-    title: 'Остаток переходит на завтра',
-    text: 'Не потратили всё за день — разница <b>прибавится завтра</b>. Потратили больше — <b>вычтется</b> из завтрашнего.',
-    note: '1-го числа вы увидите итоги месяца: сколько сэкономили и сколько превысили, — и одним нажатием отложите деньги в копилку.',
+    view: 'expenses', sel: '#tx-categories', title: 'Категория',
+    text: 'Выберите категорию и нажмите «Готово». Ошиблись — во всплывающем сообщении будет «Отменить».',
   },
   {
-    emoji: '📊',
-    title: 'Статистика и накопления',
-    text: 'Во вкладке <b>«Статистика»</b> — траты по категориям, по месяцам и план. Переключатель <b>«Накопления»</b> — ваша копилка и итоги месяцев.',
-    note: 'Во вкладке «Долги» — кто кому сколько должен.',
+    view: 'expenses', sel: '#tx-date-chips', title: 'Трата была вчера?',
+    text: 'Выберите «Вчера» или любой другой день. Комментарий — ниже, если нужен.',
   },
   {
-    emoji: '📥',
-    important: true,
-    title: 'Импорт выписки из банка',
-    text: 'Не обязательно вводить всё вручную. Выгрузите в приложении банка <b>выписку за месяц</b> в формате <b>PDF, Excel или CSV</b> и загрузите её: <b>Настройки → «Импорт выписки»</b>.',
-    mock: `<div class="g-mock small">📄 выписка_октябрь.pdf<br>Операций: <b>124</b> · расходы <b>45 300 ₽</b><br><span class="muted">категории подобраны, повторы пропущены</span></div>`,
-    note: 'Категории подберутся сами, уже внесённые траты не задвоятся.',
+    view: 'expenses', sel: '#tx-sms', title: 'Из SMS банка',
+    text: 'Скопируйте SMS о покупке и нажмите сюда — сумма, магазин и дата распознаются сами. Можно сразу несколько сообщений.',
   },
   {
-    emoji: '🛟',
-    title: 'Чтобы ничего не потерять',
-    text: 'Время от времени сохраняйте копию: <b>Настройки → «Сохранить копию в файл»</b>. Если удалить приложение, данные удалятся вместе с ним.',
-    note: 'Попробовать без риска можно в «Тестовом режиме» (Настройки).',
-    alert: 'Рекомендуется добавить выписку из банка за месяц, чтобы не вводить всё вручную.',
-    last: true,
+    view: 'expenses', before: closeSheets, sel: '.month-pick', title: 'Месяц и день',
+    text: 'Стрелки — другой месяц. Нажмите на название — можно выбрать любой день и записать трату задним числом.',
+  },
+  {
+    view: 'expenses', sel: '#today-hero', title: 'Сколько можно сегодня',
+    text: 'Здесь главное число дня. Его дают цели «в день» из вкладки «План»: не потратили всё — остаток прибавится завтра, потратили больше — вычтется.',
+  },
+  {
+    view: 'plan', sel: '#bud-top', title: 'План: деньги по категориям',
+    text: '«Готово к распределению» — деньги, у которых ещё нет задачи. Разложите их по категориям, пока здесь не станет 0 ₽: тогда у каждого рубля есть дело.',
+  },
+  {
+    view: 'plan', sel: '.bud-row', title: 'Нажмите на категорию',
+    text: 'Назначьте ей сумму на месяц и поставьте цель: «300 ₽ в день», «2 000 ₽ в месяц» или «накопить 60 000 ₽ к июню».',
+  },
+  {
+    view: 'plan', sel: '.bud-row .bud-pill', title: 'Сколько осталось',
+    text: 'Зелёный — всё хорошо, жёлтый — до цели не хватает, красный — перерасход, серый — ноль. Остаток сам переходит на следующий месяц.',
+  },
+  {
+    view: 'plan', sel: '[data-bud=assign]', title: 'Распределить одной кнопкой',
+    text: 'Разложит деньги по целям, как в прошлом месяце или по тому, сколько вы тогда потратили. Не понравилось — «Отменить».',
+    // «Мои деньги» ещё не указаны — вместо «Распределить» кнопка «Указать»
+    alt: {
+      sel: '[data-bud=wallet]', title: 'Сначала — сколько у вас денег',
+      text: 'План распределяет только те деньги, что уже есть. Укажите их здесь — и появится кнопка «Распределить»: разложит деньги по целям или как в прошлом месяце.',
+    },
+  },
+  {
+    view: 'plan', sel: '.bud-ghead', title: 'Группы',
+    text: 'Категории разложены по группам: обязательное, повседневное, цели. Нажмите на название группы — переименовать или переставить. Если категория уйдёт в минус, здесь появится кнопка «Покрыть» — возьмёте деньги из другой.',
+  },
+  {
+    view: 'stats', sel: '#stats-section', title: 'Статистика и копилка',
+    text: 'Куда уходят деньги: по категориям, по месяцам и итоги плана. «Накопления» — ваша копилка.',
+  },
+  {
+    view: 'settings', sel: '#imp-card', important: true, title: 'Выписка из банка',
+    text: 'Чтобы не вводить всё вручную, раз в несколько дней загружайте выписку из приложения банка (PDF, Excel или CSV). Категории подберутся сами, повторы пропустятся.',
+  },
+  {
+    view: 'settings', sel: '#rec-card', title: 'Регулярные платежи',
+    text: 'Подписки, связь, проездной — внесите один раз, дальше приложение само запишет их в нужный день.',
+  },
+  {
+    view: 'settings', sel: '#open-debts', title: 'Долги и всё остальное',
+    text: 'Во вкладке «Ещё» — долги, оформление (темы), категории, напоминания и резервная копия.',
+  },
+  {
+    view: 'settings', sel: '#settings-guide', title: 'Тур можно повторить',
+    text: 'Если что-то забудется — нажмите «Как пользоваться», и я покажу всё заново.',
+  },
+  {
+    view: 'expenses', title: 'Готово! 🎉', final: true,
+    text: 'Начните с главного: укажите, сколько у вас сейчас денег, потом откройте «План» и разложите их по категориям.',
   },
 ];
 
 let index = 0;
+let shown = [];
 
-function markDone() {
-  try { localStorage.setItem('guideDone', '1'); } catch { /* ничего */ }
+/** Элемент виден на экране (есть и не скрыт)? */
+function visible(sel) {
+  const el = document.querySelector(sel);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 ? el : null;
 }
-function isDone() {
-  try { return localStorage.getItem('guideDone') === '1'; } catch { return true; }
+
+/** Шаг с учётом запасного варианта (alt), если основного элемента нет. */
+function stepNow() {
+  const s = STEPS[index];
+  if (s.alt && s.sel && !visible(s.sel) && visible(s.alt.sel)) return { ...s, ...s.alt };
+  return s;
 }
 
 function render() {
-  $('guide-track').innerHTML = SLIDES.map((s) => `
-    <section class="g-slide"><div class="g-inner">
-      ${s.important ? '<div class="g-badge">❗ ВАЖНО</div>' : ''}
-      <div class="g-emoji">${s.emoji}</div>
-      <h2>${s.title}</h2>
-      <p class="g-text">${s.text}</p>
-      ${s.mock || ''}
-      ${s.note ? `<p class="g-note">${s.note}</p>` : ''}
-      ${s.alert ? `<div class="g-alert">❗ ${s.alert}</div>` : ''}
-    </div></section>`).join('');
-  $('guide-dots').innerHTML = SLIDES.map((_, i) => `<i data-i="${i}"></i>`).join('');
-  update();
+  const s = stepNow();
+  const box = $('tour');
+  const total = STEPS.length;
+  const el = s.sel ? visible(s.sel) : null;
+
+  const bubble = $('tour-bubble');
+  bubble.classList.toggle('important', !!s.important);
+  bubble.innerHTML = `
+    <div class="tour-top">
+      <span class="tour-count">${index + 1} из ${total}</span>
+      ${s.final ? '' : '<button type="button" class="tour-skip" data-tour="skip">Пропустить</button>'}
+    </div>
+    ${s.important ? '<div class="tour-badge">❗ ВАЖНО</div>' : ''}
+    <b class="tour-title">${s.title}</b>
+    <p class="tour-text">${s.text}</p>
+    <div class="tour-btns">
+      ${index > 0 && !s.final ? '<button type="button" class="secondary-btn" data-tour="back">Назад</button>' : ''}
+      ${s.final
+        ? `${s.noWallet ? '<button type="button" class="secondary-btn" data-tour="done">Позже</button><button type="button" class="primary-btn" data-tour="wallet">Указать деньги</button>' : '<button type="button" class="primary-btn" data-tour="done">Начать</button>'}`
+        : `<button type="button" class="primary-btn" data-tour="next">${index === 0 ? 'Начать' : 'Далее'}</button>`}
+    </div>`;
+
+  const hole = $('tour-hole');
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  if (!el) {
+    // Подсказка по центру, без подсветки
+    hole.classList.add('none');
+    hole.style.cssText = `left:${vw / 2}px;top:${vh / 2}px;width:0;height:0`;
+    bubble.style.left = '16px';
+    bubble.style.right = '16px';
+    bubble.style.top = `${Math.max(16, vh / 2 - bubble.offsetHeight / 2)}px`;
+    box.classList.add('centered');
+    return;
+  }
+  box.classList.remove('centered');
+  hole.classList.remove('none');
+  const r = el.getBoundingClientRect();
+  const pad = 6;
+  const round = getComputedStyle(el).borderRadius;
+  const top = Math.max(4, r.top - pad);
+  const bottom = Math.min(vh - 4, r.bottom + pad);
+  hole.style.cssText = `left:${r.left - pad}px;top:${top}px;width:${r.width + pad * 2}px;height:${bottom - top}px;border-radius:${round === '0px' ? '12px' : round}`;
+
+  // Подсказка — под элементом, если помещается, иначе над ним
+  bubble.style.left = '16px';
+  bubble.style.right = '16px';
+  const h = bubble.offsetHeight;
+  let y = bottom + 12;
+  if (y + h > vh - 12) y = top - 12 - h;
+  if (y < 12) y = Math.max(12, vh - h - 12); // огромный элемент — подсказка внизу экрана
+  bubble.style.top = `${y}px`;
 }
 
-function update() {
-  const last = index === SLIDES.length - 1;
-  for (const d of $('guide-dots').children) d.classList.toggle('active', Number(d.dataset.i) === index);
-  $('guide-next').textContent = last ? 'Начать' : 'Далее';
-  $('guide-wallet').hidden = !last;
-  $('guide-import').hidden = !last;
-  $('guide-skip').style.visibility = last ? 'hidden' : 'visible';
-}
-
-function goTo(i) {
-  const track = $('guide-track');
-  track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
-}
-
-export function openGuide() {
-  index = 0;
+async function show(i, dir = 1) {
+  index = i;
+  const s = STEPS[index];
+  if (s.final) s.noWallet = !(await getWallet());
+  const active = document.querySelector('.view.active');
+  if (!active || active.id !== 'view-' + s.view) tab(s.view);
+  if (s.before) s.before();
+  await wait(s.before ? 380 : 120);
+  const sel = stepNow().sel;
+  if (sel) {
+    const el = visible(sel);
+    if (!el) { // нет на экране (например, «Сегодня можно» без целей) — пропускаем
+      const next = index + dir;
+      if (next >= 0 && next < STEPS.length) return show(next, dir);
+    } else {
+      // Высокий элемент — к верху экрана, чтобы подсказка поместилась под ним
+      const tall = el.getBoundingClientRect().height > window.innerHeight * 0.35;
+      el.scrollIntoView({ block: tall ? 'start' : 'center' });
+      await wait(160);
+    }
+  }
+  shown.push(index);
   render();
-  $('guide').hidden = false;
-  requestAnimationFrame(() => {
-    $('guide-track').scrollLeft = 0;
-    $('guide').classList.add('open');
-  });
 }
 
-function closeGuide() {
-  markDone();
-  $('guide').classList.remove('open');
-  setTimeout(() => { $('guide').hidden = true; }, 250);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export async function startTour() {
+  closeSheets();
+  $('tour').hidden = false;
+  requestAnimationFrame(() => $('tour').classList.add('open'));
+  shown = [];
+  await show(0);
+}
+
+function endTour() {
+  try { localStorage.setItem(KEY, '1'); localStorage.setItem('guideDone', '1'); } catch { /* ничего */ }
+  $('tour').classList.remove('open');
+  setTimeout(() => { $('tour').hidden = true; }, 200);
+  closeSheets();
+  tab('expenses');
+  $('view-expenses').scrollTo(0, 0);
 }
 
 export function initGuide() {
-  const track = $('guide-track');
-  // Свайп: узнаём текущую карточку по прокрутке
-  track.addEventListener('scroll', () => {
-    const i = Math.round(track.scrollLeft / track.clientWidth);
-    if (i !== index) { index = i; update(); }
-  }, { passive: true });
-  $('guide-next').addEventListener('click', () => {
-    if (index >= SLIDES.length - 1) closeGuide();
-    else goTo(index + 1);
+  $('tour').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tour]');
+    if (!b) return;
+    const act = b.dataset.tour;
+    if (act === 'next') show(index + 1, 1);
+    if (act === 'back') {
+      // Назад — на предыдущий показанный шаг (с учётом пропущенных)
+      shown.pop();
+      const prev = shown.pop();
+      show(prev ?? 0, -1);
+    }
+    if (act === 'skip' || act === 'done') endTour();
+    if (act === 'wallet') { endTour(); setTimeout(openWalletSheet, 250); }
   });
-  $('guide-skip').addEventListener('click', closeGuide);
-  $('guide-wallet').addEventListener('click', () => { closeGuide(); openWalletSheet(); });
-  // «Загрузить выписку» — сразу открываем выбор файла
-  $('guide-import').addEventListener('click', () => {
-    closeGuide();
-    document.querySelector('.tab[data-view=settings]').click();
-    $('imp-file-input').click();
-  });
-  $('guide-dots').addEventListener('click', (e) => {
-    const d = e.target.closest('[data-i]');
-    if (d) goTo(Number(d.dataset.i));
-  });
-  $('settings-guide').addEventListener('click', openGuide);
+  window.addEventListener('resize', () => { if (!$('tour').hidden) render(); });
+  $('settings-guide').addEventListener('click', startTour);
 
-  if (!isDone()) openGuide();
+  let done = false;
+  try { done = localStorage.getItem(KEY) === '1'; } catch { done = true; }
+  if (!done) setTimeout(startTour, 500);
 }

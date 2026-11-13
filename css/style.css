@@ -1275,3 +1275,32 @@ html, body { touch-action: manipulation; }
 .debts-row { margin-bottom: 18px; }
 .back-btn { font-size: 32px; }
 .sav-note { margin: 0 4px 14px; }
+
+/* =====================================================================
+   8.1: тур по интерфейсу
+   ===================================================================== */
+.tour { position: fixed; inset: 0; z-index: 1000; opacity: 0; transition: opacity 0.2s; }
+.tour.open { opacity: 1; }
+.tour-hole {
+  position: fixed; border-radius: 14px; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 9999px rgba(0, 0, 0, 0.62);
+  transition: left 0.25s, top 0.25s, width 0.25s, height 0.25s;
+}
+.tour-hole.none { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62); }
+.tour-bubble {
+  position: fixed; left: 16px; right: 16px; max-width: 440px; margin: 0 auto;
+  background: var(--card); color: var(--text); border-radius: 18px; padding: 14px 16px 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35); transition: top 0.25s;
+}
+.tour-bubble.important { box-shadow: 0 0 0 2px var(--danger), 0 12px 36px rgba(0, 0, 0, 0.35); }
+.tour-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.tour-count { font-size: 12px; color: var(--muted); }
+.tour-skip { color: var(--muted); font-size: 14px; min-height: 32px; padding: 0 4px; }
+.tour-badge {
+  display: inline-block; background: var(--danger); color: #fff; font-size: 12px; font-weight: 700;
+  border-radius: 8px; padding: 3px 8px; margin-bottom: 6px;
+}
+.tour-title { display: block; font-size: 18px; margin-bottom: 4px; }
+.tour-text { margin: 0 0 12px; font-size: 15px; line-height: 1.4; }
+.tour-btns { display: flex; gap: 8px; }
+.tour-btns button { flex: 1; min-height: 44px; margin: 0; }

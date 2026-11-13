@@ -340,7 +340,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 8.0</p>
+      <p class="small muted center">Версия 8.1</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -746,18 +746,10 @@
   <!-- Меню действий снизу экрана -->
   <div id="action-sheet" class="sheet action-sheet"></div>
 
-  <!-- ============ ГАЙД ПРИ ПЕРВОМ ОТКРЫТИИ ============ -->
-  <div id="guide" class="guide" hidden>
-    <div class="g-top">
-      <button type="button" class="link-btn" id="guide-skip">Пропустить</button>
-    </div>
-    <div class="g-track" id="guide-track"></div>
-    <div class="g-bottom">
-      <div class="g-dots" id="guide-dots"></div>
-      <button type="button" class="primary-btn full" id="guide-next">Далее</button>
-      <button type="button" class="import-btn full" id="guide-import" hidden>📥 Загрузить выписку</button>
-      <button type="button" class="link-btn g-link" id="guide-wallet" hidden>Указать мои деньги</button>
-    </div>
+  <!-- ============ ТУР ПО ИНТЕРФЕЙСУ ============ -->
+  <div id="tour" class="tour" hidden>
+    <div class="tour-hole none" id="tour-hole"></div>
+    <div class="tour-bubble" id="tour-bubble" role="dialog" aria-live="polite"></div>
   </div>
 
   <div id="toast" class="toast" role="status"></div>
