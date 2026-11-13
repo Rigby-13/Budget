@@ -26,6 +26,7 @@ import {
   initRecurring, processRecurring, renderPending, renderRecurringSettings, openRecSheet,
 } from './recurring.js';
 import { initImport } from './importer.js';
+import { initSms, pasteFromSms } from './sms.js';
 import { initReset, renderReset } from './reset.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
@@ -79,6 +80,7 @@ async function init() {
   initSavings();
   initWallet();
   initImport();
+  initSms();
   initReset();
   initTheme();
   initRecurring();
@@ -116,6 +118,7 @@ async function renderExpenses() {
   renderDateBar();
   await renderBalance();
   await renderPending();
+  await renderNudge();
 
   const { from, to } = monthRange(state.year, state.month);
   const items = await db.getTransactionsBetween(from, to);
@@ -223,6 +226,37 @@ function weekdayLong(iso) {
   return ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'][fromISODate(iso).getDay()];
 }
 
+// =====================================================================
+// «Вчера ничего не записано» — напоминание при открытии
+// =====================================================================
+function nudgeDismissed(iso) {
+  try { return localStorage.getItem('nudgeDismissed') === iso; } catch { return false; }
+}
+async function renderNudge() {
+  const box = $('nudge');
+  const n = now();
+  const isCurrent = state.year === n.getFullYear() && state.month === n.getMonth();
+  const any = (await db.getTransactionsBetween(addDays(todayISO(), -60), todayISO())).length;
+  if (!isCurrent || !any) { box.innerHTML = ''; return; }
+  const today = todayISO();
+  const yesterday = addDays(today, -1);
+  const yCount = (await db.getTransactionsBetween(yesterday, yesterday)).length;
+  const tCount = (await db.getTransactionsBetween(today, today)).length;
+  let day = null, title = '';
+  if (!yCount && !nudgeDismissed(yesterday)) { day = yesterday; title = 'Вчера ничего не записано'; }
+  else if (!tCount && n.getHours() >= 20 && !nudgeDismissed(today)) { day = today; title = 'Сегодня пока ничего не записано'; }
+  if (!day) { box.innerHTML = ''; return; }
+  box.innerHTML = `<section class="card nudge-card" data-day="${day}">
+    <b>📝 ${title}</b>
+    <div class="nudge-btns">
+      <button type="button" class="primary-btn" data-nudge="add">Записать</button>
+      <button type="button" class="secondary-btn" data-nudge="sms">Из SMS</button>
+      <button type="button" class="secondary-btn" data-nudge="import">Выписка</button>
+    </div>
+    <button type="button" class="link-btn small-link" data-nudge="none">Ничего не тратил</button>
+  </section>`;
+}
+
 /** Выбрать день: переходим в его месяц, «+» будет записывать на этот день. */
 function pickDate(iso) {
   const [y, m] = iso.split('-').map(Number);
@@ -293,6 +327,7 @@ function renderTypeToggle() {
   $('tx-categories').hidden = isLimit;
   $('tx-fields').hidden = isLimit;
   $('limit-fields').hidden = !isLimit;
+  $('tx-sms').hidden = isLimit || !!state.editing;
   $('plan-picker').hidden = !isLimit;
   if (!isLimit) $('amount-wrap').hidden = false; // в лимите «по дням недели» поле суммы скрыто
   $('amount-caption').hidden = !isLimit;
@@ -493,6 +528,22 @@ function bindEvents() {
   });
 
   $('tx-more').addEventListener('click', () => setExtraOpen(true));
+  // Карточка «Вчера ничего не записано»
+  $('nudge').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-nudge]');
+    if (!b) return;
+    const day = b.closest('[data-day]').dataset.day;
+    const act = b.dataset.nudge;
+    if (act === 'add') {
+      if (day !== todayISO()) pickDate(day);
+      openTxSheet();
+    } else if (act === 'sms') pasteFromSms();
+    else if (act === 'import') { document.querySelector('.tab[data-view=settings]').click(); $('imp-file-input').click(); }
+    else if (act === 'none') {
+      try { localStorage.setItem('nudgeDismissed', day); } catch { /* ничего */ }
+      renderNudge();
+    }
+  });
   $('tx-date-chips').addEventListener('click', (e) => {
     const b = e.target.closest('[data-day]');
     if (!b) return;

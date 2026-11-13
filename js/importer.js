@@ -84,7 +84,7 @@ const skipReason = (text) => {
 };
 
 // Категории банка, которые ничего не говорят (у Альфы почти всё — «Прочие операции»)
-const MEANINGLESS_CATEGORY = /^(прочие операции|прочие расходы|прочее|другое|разное)$/i;
+const MEANINGLESS_CATEGORY = /^(прочие операции|прочие расходы|прочее|другое|разное|покупка|оплата|списание)$/i;
 
 /**
  * Достаём из описания самое полезное.
@@ -447,6 +447,18 @@ async function createCategory(type) {
   document.dispatchEvent(new Event('categories-changed'));
   toast(`Категория «${name}» создана — эмодзи можно поменять в настройках`, 3000);
   return cat.id;
+}
+
+/** Открыть окно проверки для готовых операций (например, из SMS). */
+export async function startImportOps(ops, name, format) {
+  st.fileName = name;
+  st.format = format;
+  st.pdfOps = ops;
+  st.rows = [];
+  st.det = { cols: {}, headers: [], headerIndex: -1 };
+  await prepare();
+  render();
+  openSheet($('imp-sheet'));
 }
 
 export async function startImport(file) {
