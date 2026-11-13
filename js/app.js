@@ -123,6 +123,7 @@ async function renderExpenses() {
   // Итоги
   let expense = 0, income = 0;
   for (const t of items) {
+    if (t.ownTransfer) continue; // свой перевод — не трата и не доход
     if (t.type === 'income') income += t.amount; else expense += t.amount;
   }
   const balance = income - expense;
@@ -152,17 +153,18 @@ async function renderExpenses() {
 
   let html = '';
   for (const [date, txs] of groups) {
-    const dayExpense = txs.filter((t) => t.type !== 'income').reduce((s, t) => s + t.amount, 0);
+    const dayExpense = txs.filter((t) => t.type !== 'income' && !t.ownTransfer).reduce((s, t) => s + t.amount, 0);
     html += `<section class="day-group" data-date="${date}">
       <div class="day-head"><span>${dayLabel(date)}</span><span>${dayExpense ? '−' + formatMoney(dayExpense) : ''}</span></div>
       <div class="day-list">`;
     for (const t of txs) {
       const c = categoryById(t.categoryId);
       const sign = t.type === 'income' ? '+' : '−';
-      html += `<button class="tx" data-id="${t.id}">
+      html += `<button class="tx ${t.ownTransfer ? 'own' : ''}" data-id="${t.id}">
           <span class="tx-emoji">${c.emoji}</span>
           <span class="tx-main">
             <div class="tx-cat">${escapeHTML(c.name)}${t.recurringId ? ' <span class="rec-mark" title="Регулярный платёж">🔁</span>' : ''}</div>
+            ${t.ownTransfer ? '<div class="tx-comment">↔ свой перевод — не трата и не доход</div>' : ''}
             ${t.comment ? `<div class="tx-comment">${escapeHTML(t.comment)}</div>` : ''}
           </span>
           <span class="tx-amount ${t.type === 'income' ? 'income' : ''}">${sign}${formatMoney(t.amount)}</span>
@@ -259,6 +261,7 @@ function openTxSheet(tx = null, limitFor = null, categoryId = null, limitMonth =
   $('tx-comment').value = tx ? tx.comment || '' : '';
   $('tx-delete').hidden = !tx;
   $('tx-make-rec').hidden = !tx;
+  $('tx-own').checked = !!tx?.ownTransfer;
   if (tx) $('tx-make-rec').textContent = tx.recurringId ? '🔁 Регулярный платёж — изменить' : '🔁 Сделать регулярной';
   // Дату и комментарий показываем сразу, только если они уже заполнены
   setExtraOpen(!!tx && !!tx.comment);
@@ -361,6 +364,8 @@ async function saveForm(e) {
 
   const date = $('tx-date').value || todayISO();
   const tx = {
+    // При редактировании сохраняем служебные поля (метку импорта, регулярного платежа)
+    ...(state.editing || {}),
     id: state.editing?.id ?? db.newId(),
     createdAt: state.editing?.createdAt ?? Date.now(),
     type: state.formType,
@@ -368,6 +373,7 @@ async function saveForm(e) {
     categoryId: state.formCategoryId,
     date,
     comment: $('tx-comment').value.trim(),
+    ownTransfer: $('tx-own').checked || undefined,
   };
   await db.put('transactions', tx);
   rememberCategory(tx.type, tx.categoryId);

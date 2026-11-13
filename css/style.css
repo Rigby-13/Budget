@@ -1084,3 +1084,10 @@ html, body { touch-action: manipulation; }
 .rec-pend-row .primary-btn { min-height: 36px; padding: 6px 12px; font-size: 14px; }
 .soon-row { cursor: default; }
 #tx-make-rec { margin-top: 12px; }
+
+/* 7.3: свой перевод */
+.own-row { margin: 10px 0 0; }
+.tx.own .tx-amount { color: var(--muted); font-weight: 500; }
+.tx.own .tx-cat { color: var(--muted); }
+.imp-own { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--accent); }
+.imp-own button { font-size: 12px; color: var(--accent); text-decoration: underline; padding: 0; }
