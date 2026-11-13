@@ -30,14 +30,27 @@ import { initSms, pasteFromSms } from './sms.js';
 import { initReset, renderReset } from './reset.js';
 
 // ---------- Категории по умолчанию (создаются при первом запуске) ----------
+// [эмодзи, название, тип, группа в плане]
 const DEFAULT_CATEGORIES = [
-  ['🍔', 'Еда/Напитки', 'expense'], ['⬆️', 'Переводы', 'expense'],
-  ['🛒', 'Покупки', 'expense'], ['🍕', 'Продукты', 'expense'],
-  ['💊', 'Здоровье', 'expense'], ['💳', 'Подписки', 'expense'],
-  ['🚌', 'Транспорт', 'expense'], ['☕', 'Рестораны', 'expense'],
-  ['📦', 'Другое', 'expense'],
-  ['💼', 'Зарплата', 'income'], ['💸', 'Подработка', 'income'],
-  ['⬇️', 'Переводы', 'income'], ['🎁', 'Подарок', 'income'],
+  ['🏠', 'Жильё и ЖКХ', 'expense', 'g-must'],
+  ['📱', 'Связь и подписки', 'expense', 'g-must'],
+  ['🏦', 'Кредиты', 'expense', 'g-must'],
+  ['🛒', 'Продукты', 'expense', 'g-daily'],
+  ['☕', 'Кафе и рестораны', 'expense', 'g-daily'],
+  ['🚌', 'Транспорт и такси', 'expense', 'g-daily'],
+  ['🛍️', 'Покупки', 'expense', 'g-daily'],
+  ['💊', 'Здоровье и красота', 'expense', 'g-daily'],
+  ['🎬', 'Развлечения', 'expense', 'g-daily'],
+  ['🎁', 'Подарки', 'expense', 'g-daily'],
+  ['⬆️', 'Переводы', 'expense', 'g-daily'],
+  ['📦', 'Другое', 'expense', 'g-daily'],
+  ['🛟', 'Подушка безопасности', 'expense', 'g-goals'],
+  ['✈️', 'Отпуск', 'expense', 'g-goals'],
+  ['💼', 'Зарплата', 'income'],
+  ['💸', 'Подработка', 'income'],
+  ['⬇️', 'Переводы', 'income'],
+  ['🔙', 'Кэшбэк и возвраты', 'income'],
+  ['🎁', 'Подарки', 'income'],
   ['📦', 'Другое', 'income'],
 ];
 
@@ -96,8 +109,8 @@ async function seedCategories() {
   const existing = await db.getAll('categories');
   if (existing.length) return;
   let order = 0;
-  for (const [emoji, name, type] of DEFAULT_CATEGORIES) {
-    await db.put('categories', { id: db.newId(), emoji, name, type, order: order++ });
+  for (const [emoji, name, type, group] of DEFAULT_CATEGORIES) {
+    await db.put('categories', { id: db.newId(), emoji, name, type, order: order++, ...(group ? { group } : {}) });
   }
 }
 
