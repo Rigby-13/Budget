@@ -385,7 +385,7 @@ export async function migrateToBudget() {
   for (const c of cats) {
     if (c.type !== 'expense') continue;
     const catRecs = recs.filter((r) => r.categoryId === c.id);
-    c.group = catRecs.length || MUST.test(c.name) ? 'g-must' : 'g-daily';
+    c.group = c.group || (catRecs.length || MUST.test(c.name) ? 'g-must' : 'g-daily');
     const limit = plan && plan.limits.find((l) => l.categoryId === c.id);
     if (limit) {
       c.target = { type: limit.period, amount: limit.amount };

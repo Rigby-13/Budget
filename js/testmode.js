@@ -112,10 +112,10 @@ async function fillExample() {
     }
     return c;
   };
-  const food = await ensure(['Еда/Напитки', 'Еда'], '🍔');
-  const transport = await ensure('Транспорт', '🚌');
-  const ai = await ensure(['Подписки', 'Нейросети'], '💳');
-  const fun = await ensure(['Покупки', 'Развлечения'], '🛒');
+  const food = await ensure(['Продукты', 'Еда/Напитки', 'Еда'], '🛒');
+  const transport = await ensure(['Транспорт и такси', 'Транспорт'], '🚌');
+  const ai = await ensure(['Связь и подписки', 'Подписки', 'Нейросети'], '📱');
+  const fun = await ensure(['Покупки', 'Развлечения'], '🛍️');
 
   // План «Пример»: цели и назначенные суммы на текущий месяц
   const key = currentMonthKey();
