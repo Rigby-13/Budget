@@ -275,9 +275,54 @@ async function prepare() {
     const g = guessCategory(o, st.categories, rules);
     return { ...o, categoryId: g.id, unrecognized: !g.recognized, dup, checked: !dup && !o.skip };
   });
+  await findOwnTransfers(dates);
   st.leftOther = false;
   // Месяц по умолчанию — все
   st.month = 'all';
+}
+
+// ---------------------------------------------------------------------
+// Свои переводы между счетами
+// ---------------------------------------------------------------------
+// Перевели со Сбера на Т-Банк: в одной выписке «минус», в другой «плюс».
+// Если считать обе — доходы и расходы раздуваются. Ищем такие пары:
+// противоположный знак, та же сумма, ±1 день, обе похожи на перевод.
+const TRANSFER_RE = /перевод|сбп|быстрых платежей|пополнение|договор|transfer|кредитных организац|между счетами/i;
+
+function transferLike(text, categoryId) {
+  const cat = st.categories.find((c) => c.id === categoryId);
+  return TRANSFER_RE.test(text || '') || (cat && /перевод/i.test(cat.name));
+}
+
+async function findOwnTransfers(dates) {
+  const near = await db.getTransactionsBetween(addDays(dates[0], -1), addDays(dates[dates.length - 1], 1));
+  const used = new Set();
+  const candidates = st.ops.filter((o) => !o.dup && !o.skip && transferLike(`${o.description} ${o.bankCategory}`, o.categoryId));
+  // 1) Встречная запись уже есть в приложении (другая выписка или внесено вручную)
+  for (const o of candidates) {
+    const ex = near.find((t) => !used.has(t.id) && !t.ownTransfer && t.type !== o.type && t.amount === o.amount
+      && Math.abs(daysBetween(t.date, o.date)) <= 1 && transferLike(t.comment, t.categoryId));
+    if (ex) {
+      used.add(ex.id);
+      o.own = true;
+      o.pairWith = ex.id;
+      o.pairText = `встречная ${ex.type === 'income' ? '+' : '−'}${formatMoney(ex.amount)} ${shortDate(ex.date)}${ex.comment ? ' · ' + ex.comment.slice(0, 30) : ''}`;
+    }
+  }
+  // 2) Пара внутри этой же выписки
+  for (let i = 0; i < candidates.length; i++) {
+    const a = candidates[i];
+    if (a.own) continue;
+    for (let j = i + 1; j < candidates.length; j++) {
+      const b = candidates[j];
+      // внутри одной выписки — только в тот же день (меньше ложных совпадений)
+      if (b.own || a.type === b.type || a.amount !== b.amount || a.date !== b.date) continue;
+      a.own = b.own = true;
+      a.partner = b; b.partner = a;
+      a.pairText = b.pairText = 'пара в этой выписке';
+      break;
+    }
+  }
 }
 
 function visibleOps() {
@@ -303,12 +348,14 @@ function render() {
 
   const ops = visibleOps();
   const chosen = ops.filter((o) => o.checked);
-  const exp = chosen.filter((o) => o.type === 'expense').reduce((s, o) => s + o.amount, 0);
-  const inc = chosen.filter((o) => o.type === 'income').reduce((s, o) => s + o.amount, 0);
+  const exp = chosen.filter((o) => o.type === 'expense' && !o.own).reduce((s, o) => s + o.amount, 0);
+  const inc = chosen.filter((o) => o.type === 'income' && !o.own).reduce((s, o) => s + o.amount, 0);
+  const own = chosen.filter((o) => o.own).length;
   const dups = ops.filter((o) => o.dup).length;
   $('imp-summary').innerHTML = ops.length
     ? `Операций: <b>${ops.length}</b> · выбрано ${chosen.length}<br>
        Расходы <b>${formatMoney(exp)}</b> · доходы <b class="income">${formatMoney(inc)}</b>
+       ${own ? `<br><span class="muted">↔ Свои переводы: ${own} — не попадут в траты и доходы</span>` : ''}
        ${dups ? `<br><span class="muted">Уже есть в приложении: ${dups} — они не отмечены</span>` : ''}`
     : '<span class="negative">Не нашёл операций. Проверьте колонки ниже — особенно «Дата» и «Сумма».</span>';
   renderUnrecognized(ops);
@@ -336,6 +383,8 @@ function render() {
         <div class="imp-desc">${escapeHTML(o.description || o.bankCategory || 'Без описания')}</div>
         ${o.bankCategory || o.mcc ? `<div class="imp-meta">${escapeHTML([o.bankCategory, o.mcc ? 'MCC ' + o.mcc : ''].filter(Boolean).join(' · '))}</div>` : ''}
         ${o.dup || o.skip || o.pending ? `<div class="imp-note">${o.dup || o.skip || 'ещё не подтверждена банком (HOLD)'}</div>` : ''}
+        ${o.own ? `<div class="imp-own">↔ свой перевод (${escapeHTML(o.pairText || 'вручную')}) — не трата и не доход <button type="button" class="imp-own-off">не свой</button></div>`
+          : o.checked && transferLike(`${o.description} ${o.bankCategory}`, o.categoryId) ? '<div class="imp-own"><button type="button" class="imp-own-on">↔ это свой перевод</button></div>' : ''}
         <select class="imp-cat">${catOptions(o.type, o.categoryId)}</select>
       </div>
       <button type="button" class="imp-remove" aria-label="Убрать из списка">✕</button>
@@ -347,7 +396,7 @@ function render() {
 function unresolvedGroups(ops) {
   const groups = new Map();
   for (const o of ops) {
-    if (!o.unrecognized || o.userSet || !o.checked) continue;
+    if (!o.unrecognized || o.userSet || !o.checked || o.own) continue;
     const k = groupKey(o);
     if (!groups.has(k)) groups.set(k, { key: k, type: o.type, label: o.bankCategory || o.description || 'Без описания', ops: [] });
     groups.get(k).ops.push(o);
@@ -431,7 +480,13 @@ async function doImport() {
     await db.put('transactions', {
       id: db.newId(), createdAt: Date.now() + n, type: o.type, amount: o.amount,
       categoryId: o.categoryId, date: o.date, comment: o.description.slice(0, 120), importKey: importKey(o),
+      ...(o.own ? { ownTransfer: true } : {}),
     });
+    // Встречная запись из другой выписки — тоже свой перевод
+    if (o.own && o.pairWith) {
+      const ex = await db.get('transactions', o.pairWith);
+      if (ex) await db.put('transactions', { ...ex, ownTransfer: true });
+    }
     // Запоминаем: ваш выбор — всегда, автоматический — только если правила ещё нет
     const key = normalize(o.description);
     if (o.groupSet && o.bankCategory) rules[bankKey(o)] = o.categoryId; // вся категория банка
@@ -496,10 +551,17 @@ export function initImport() {
   });
   // ✕ — убрать операцию из списка (не добавлять)
   $('imp-list').addEventListener('click', (e) => {
-    const b = e.target.closest('.imp-remove');
-    if (!b) return;
-    st.ops[Number(b.closest('.imp-row').dataset.i)].removed = true;
-    render();
+    const row = e.target.closest('.imp-row');
+    if (!row) return;
+    const o = st.ops[Number(row.dataset.i)];
+    if (e.target.closest('.imp-remove')) { o.removed = true; render(); return; }
+    // «не свой» — снимаем отметку и у пары из этой выписки
+    if (e.target.closest('.imp-own-off')) {
+      o.own = false; o.pairWith = null;
+      if (o.partner) { o.partner.own = false; o.partner.partner = null; o.partner = null; }
+      render(); return;
+    }
+    if (e.target.closest('.imp-own-on')) { o.own = true; o.pairText = 'вручную'; render(); }
   });
   $('imp-removed').addEventListener('click', (e) => {
     if (!e.target.closest('#imp-restore')) return;

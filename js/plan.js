@@ -347,7 +347,7 @@ function spentIn(transactions, categoryId, from, to) {
   let s = 0;
   for (const t of transactions) {
     // Регулярные платежи идут в «обязательные», а не в лимит категории
-    if (t.type === 'expense' && !t.recurringId && t.categoryId === categoryId && t.date >= from && t.date <= to) s += t.amount;
+    if (t.type === 'expense' && !t.recurringId && !t.ownTransfer && t.categoryId === categoryId && t.date >= from && t.date <= to) s += t.amount;
   }
   return s;
 }
@@ -355,7 +355,7 @@ function spentIn(transactions, categoryId, from, to) {
 function spentOther(transactions, limitedIds, from, to) {
   let s = 0;
   for (const t of transactions) {
-    if (t.type === 'expense' && !t.recurringId && !limitedIds.has(t.categoryId) && t.date >= from && t.date <= to) s += t.amount;
+    if (t.type === 'expense' && !t.recurringId && !t.ownTransfer && !limitedIds.has(t.categoryId) && t.date >= from && t.date <= to) s += t.amount;
   }
   return s;
 }
@@ -440,7 +440,7 @@ export function monthResult(plan, categories, monthTx, upto) {
   const all = [...rows, ...(other ? [other] : []), ...(mandatory ? [mandatory] : [])];
   const saved = all.reduce((s, r) => s + Math.max(0, r.diff), 0);
   const over = all.reduce((s, r) => s + Math.max(0, -r.diff), 0);
-  const totalSpent = monthTx.filter((t) => t.type === 'expense' && t.date <= upto).reduce((s, t) => s + t.amount, 0);
+  const totalSpent = monthTx.filter((t) => t.type === 'expense' && !t.ownTransfer && t.date <= upto).reduce((s, t) => s + t.amount, 0);
   return { rows, other, mandatory, saved, over, finished, totalSpent };
 }
 

@@ -103,6 +103,7 @@ export async function renderStats() {
 function renderSummary(items, { from, to }) {
   let expense = 0, income = 0;
   for (const t of items) {
+    if (t.ownTransfer) continue; // свой перевод не считаем
     if (t.type === 'income') income += t.amount; else expense += t.amount;
   }
   const balance = income - expense;
@@ -129,7 +130,7 @@ function renderBreakdown(items, categories) {
 
   const sums = new Map();
   for (const t of items) {
-    if (t.type === type) sums.set(t.categoryId, (sums.get(t.categoryId) || 0) + t.amount);
+    if (t.type === type && !t.ownTransfer) sums.set(t.categoryId, (sums.get(t.categoryId) || 0) + t.amount);
   }
   const total = [...sums.values()].reduce((s, v) => s + v, 0);
   const rows = [...sums.entries()]
@@ -186,7 +187,7 @@ async function renderMonthly(range) {
   const to = monthRange(months[5].y, months[5].m).to;
   for (const t of await db.getTransactionsBetween(from, to)) {
     const mo = months.find((x) => x.key === t.date.slice(0, 7));
-    if (mo) mo[t.type === 'income' ? 'income' : 'expense'] += t.amount;
+    if (mo && !t.ownTransfer) mo[t.type === 'income' ? 'income' : 'expense'] += t.amount;
   }
 
   if (!months.some((mo) => mo.key === state.selectedMonth)) state.selectedMonth = months[5].key;

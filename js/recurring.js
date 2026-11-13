@@ -207,7 +207,7 @@ const norm = (s) => String(s || '').toLowerCase().replace(/[0-9*#№"'«».,:;()
 export async function findSuggestions() {
   const today = todayISO();
   const txs = (await db.getTransactionsBetween(addDays(today, -200), today))
-    .filter((t) => t.type === 'expense' && !t.recurringId && norm(t.comment));
+    .filter((t) => t.type === 'expense' && !t.recurringId && !t.ownTransfer && norm(t.comment));
   const recs = await listRecurring();
   const dismissed = (await db.get('settings', 'recDismissed'))?.keys || [];
   const groups = new Map();
