@@ -12,11 +12,11 @@ import { initCategories, openCategories } from './categories.js';
 import { initDebts, renderDebts, openDebtSheet } from './debts.js';
 import { initBackup, renderSettings } from './backup.js';
 import { initStats, renderStats } from './stats.js';
-import { migrateOldLimits, migratePlansToTemplates, refreshCurrentSnapshot } from './plan.js';
+import { migrateOldLimits, migratePlansToTemplates } from './plan.js';
+import { migrateToBudget, currentMonthKey } from './budget.js';
 import {
-  initLimitForm, showLimitForm, saveLimitForm, renderPlanCard, planToastAfterSave, BUDGET,
-  initTemplatesSettings, renderTemplatesSettings,
-} from './planui.js';
+  initBudgetUI, renderPlanView, renderHome, budgetToastAfterSave, setPlanMonth,
+} from './budgetui.js';
 import { initTestMode } from './testmode.js';
 import { initSavings } from './savings.js';
 import { initWallet, renderBalance } from './wallet.js';
@@ -48,10 +48,10 @@ const state = {
   month: today.getMonth(),   // 0 = январь
   categories: [],            // все категории
   editing: null,             // запись, которую редактируем (или null для новой)
-  formType: 'expense',       // 'expense', 'income' или 'limit' в форме
+  formType: 'expense',       // 'expense' или 'income' в форме
   formCategoryId: null,      // выбранная категория в форме
   view: 'expenses',          // текущая вкладка
-  dailyIds: [],              // категории с дневным лимитом — первые в «+»
+  dailyIds: [],              // категории с целью «в день» — первые в «+»
   pickedDate: null,          // выбранный день (для записей задним числом) или null
 };
 
@@ -61,9 +61,10 @@ const state = {
 async function init() {
   await db.openDB();
   await seedCategories();
+  // Старые планы (лимиты, шаблоны) → план конвертами (один раз)
   await migrateOldLimits();
   await migratePlansToTemplates();
-  await refreshCurrentSnapshot(); // запоминаем план текущего месяца на будущее
+  if (await migrateToBudget()) state.migrated = true;
   await processRecurring();       // внести регулярные платежи, которые подошли
   state.categories = await db.getAll('categories');
 
@@ -75,8 +76,7 @@ async function init() {
   initBackup();
   initCategories();
   initStats();
-  initLimitForm();
-  initTemplatesSettings();
+  initBudgetUI();
   initSavings();
   initWallet();
   initImport();
@@ -87,6 +87,9 @@ async function init() {
   initGuide();
   initTestMode();
   await renderExpenses();
+  if (state.migrated && (await db.getAll('settings')).some((x) => x.id.startsWith('tpl:'))) {
+    setTimeout(() => toast('Новое: вкладка «План» — лимиты перенесены туда как цели', 5000), 800);
+  }
 }
 
 async function seedCategories() {
@@ -134,8 +137,8 @@ async function renderExpenses() {
   $('sum-income').textContent = formatMoney(income);
   $('sum-balance').textContent = (balance > 0 ? '+' : '') + formatMoney(balance);
 
-  // План на месяц: лимиты на сегодня, перенос, итоги прошлого месяца
-  state.dailyIds = await renderPlanCard(viewKey(), items);
+  // «Сегодня можно» и строка плана (только в текущем месяце)
+  state.dailyIds = await renderHome(viewKey() === currentMonthKey());
   renderDetails(expense);
 
   // Сортировка: новые сверху
@@ -183,8 +186,8 @@ function viewKey() {
   return `${state.year}-${String(state.month + 1).padStart(2, '0')}`;
 }
 
-// Секция «План и итоги месяца»: в текущем месяце свёрнута (по выбору),
-// в прошлых месяцах всегда открыта — там «Сегодня можно» не нужно.
+// Секция «Итоги месяца»: в текущем месяце свёрнута (по выбору),
+// в прошлых месяцах всегда открыта.
 function detailsOpen() {
   try { return localStorage.getItem('detailsOpen') === '1'; } catch { return false; }
 }
@@ -281,12 +284,11 @@ function shiftMonth(delta) {
 // ФОРМА ДОБАВЛЕНИЯ / РЕДАКТИРОВАНИЯ
 // =====================================================================
 /**
- * Открыть окно «+». tx — запись для редактирования.
- * limitFor — сразу открыть вкладку «Лимит» (id категории или BUDGET).
+ * Открыть окно «+». tx — запись для редактирования, categoryId — сразу выбрать категорию.
  */
-function openTxSheet(tx = null, limitFor = null, categoryId = null, limitMonth = null) {
+function openTxSheet(tx = null, categoryId = null) {
   state.editing = tx;
-  state.formType = limitFor ? 'limit' : tx ? tx.type : 'expense';
+  state.formType = tx ? tx.type : 'expense';
   state.formCategoryId = tx ? tx.categoryId : categoryId || lastCategory(state.formType);
 
   $('tx-amount').value = tx ? moneyToInput(tx.amount) : '';
@@ -302,8 +304,7 @@ function openTxSheet(tx = null, limitFor = null, categoryId = null, limitMonth =
   renderDateChips();
 
   renderTypeToggle();
-  if (limitFor) showLimitForm(limitFor === BUDGET ? BUDGET : limitFor, limitMonth || viewKey());
-  else renderCategoryChips();
+  renderCategoryChips();
 
   openSheet($('tx-sheet'));
 
@@ -321,18 +322,9 @@ function renderTypeToggle() {
   for (const b of $('tx-type').querySelectorAll('button')) {
     b.classList.toggle('active', b.dataset.type === state.formType);
   }
-  // Вкладку «Лимит» нельзя выбрать при редактировании записи
-  $('tx-type').querySelector('[data-type=limit]').hidden = !!state.editing;
-  const isLimit = state.formType === 'limit';
-  $('tx-categories').hidden = isLimit;
-  $('tx-fields').hidden = isLimit;
-  $('limit-fields').hidden = !isLimit;
-  $('tx-sms').hidden = isLimit || !!state.editing;
-  $('plan-picker').hidden = !isLimit;
-  if (!isLimit) $('amount-wrap').hidden = false; // в лимите «по дням недели» поле суммы скрыто
-  $('amount-caption').hidden = !isLimit;
-  $('tx-delete').hidden = isLimit || !state.editing;
-  $('tx-make-rec').hidden = isLimit || !state.editing;
+  $('tx-sms').hidden = !!state.editing;
+  $('tx-delete').hidden = !state.editing;
+  $('tx-make-rec').hidden = !state.editing;
 }
 
 function renderCategoryChips() {
@@ -382,13 +374,6 @@ function rememberCategory(type, id) {
 
 async function saveForm(e) {
   e.preventDefault();
-  if (state.formType === 'limit') {
-    if (await saveLimitForm()) {
-      closeTxSheet();
-      document.dispatchEvent(new Event('plan-changed'));
-    }
-    return;
-  }
   const amount = parseMoney($('tx-amount').value);
   if (!amount || amount <= 0) {
     shake($('tx-amount'));
@@ -431,8 +416,14 @@ async function saveForm(e) {
       toast('Отменено');
     },
   };
-  // Если у категории есть лимит — покажем остаток вместо «Добавлено»
-  if (!(await planToastAfterSave(tx, undo))) toast(wasEditing ? 'Сохранено' : 'Добавлено', 4000, undo);
+  // Если категория есть в плане — покажем остаток вместо «Добавлено»
+  if (!(await budgetToastAfterSave(tx, undo))) toast(wasEditing ? 'Сохранено' : 'Добавлено', 4000, undo);
+}
+
+/** Строка «Долги» во вкладке «Ещё»: сколько должны мне и я. */
+async function renderDebtsRow() {
+  const debts = (await db.getAll('debts')).filter((d) => !d.closed);
+  $('debts-row-sum').textContent = debts.length ? `${debts.length} активных ›` : '›';
 }
 
 async function deleteCurrent() {
@@ -452,14 +443,17 @@ function switchView(name) {
   for (const v of document.querySelectorAll('.view')) {
     v.classList.toggle('active', v.id === 'view-' + name);
   }
+  // «Долги» открываются из вкладки «Ещё» — она и подсвечена
+  const tab = name === 'debts' ? 'settings' : name;
   for (const t of document.querySelectorAll('.tab')) {
-    t.classList.toggle('active', t.dataset.view === name);
+    t.classList.toggle('active', t.dataset.view === tab);
   }
   // Кнопка «+» есть на вкладках трат и долгов
   $('fab').classList.toggle('hidden', !['expenses', 'debts'].includes(name));
   if (name === 'debts') renderDebts();
   if (name === 'stats') renderStats();
-  if (name === 'settings') { renderSettings(); renderTemplatesSettings(); renderReset(); renderRecurringSettings(); }
+  if (name === 'plan') renderPlanView();
+  if (name === 'settings') { renderSettings(); renderReset(); renderRecurringSettings(); renderDebtsRow(); }
   $('view-' + name).scrollTo(0, 0);
 }
 
@@ -481,6 +475,8 @@ function bindEvents() {
     const tx = await db.get('transactions', btn.dataset.id);
     if (tx) openTxSheet(tx);
   });
+  $('open-debts').addEventListener('click', () => switchView('debts'));
+  $('debts-back').addEventListener('click', () => switchView('settings'));
 
   $('tx-cancel').addEventListener('click', closeTxSheet);
   $('backdrop').addEventListener('click', closeTopSheet);
@@ -495,6 +491,7 @@ function bindEvents() {
     if (isOpen($('tx-sheet'))) renderCategoryChips();
     await renderExpenses();
     if (state.view === 'stats') await renderStats();
+    if (state.view === 'plan') await renderPlanView();
   });
   $('tx-sheet').addEventListener('submit', saveForm);
   $('tx-delete').addEventListener('click', deleteCurrent);
@@ -502,22 +499,19 @@ function bindEvents() {
   $('tx-type').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b || b.dataset.type === state.formType) return;
-    const wasLimit = state.formType === 'limit';
     state.formType = b.dataset.type;
     renderTypeToggle();
-    if (state.formType === 'limit') { showLimitForm(null, viewKey()); return; }
-    if (wasLimit) $('tx-amount').value = '';
     state.formCategoryId = lastCategory(state.formType);
     renderCategoryChips();
   });
 
-  // Нажатие на строку плана / кнопку «Изменить» — открыть вкладку «Лимит».
+  // Строка плана — открыть вкладку «План».
   // Нажатие на «Сегодня можно» — сразу записать трату в эту категорию.
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-plan-edit]');
-    if (b) { openTxSheet(null, b.dataset.planEdit, null, b.dataset.planMonth || null); return; }
+    const g = e.target.closest('[data-go-plan]');
+    if (g) { setPlanMonth(g.dataset.goPlan || currentMonthKey()); switchView('plan'); return; }
     const q = e.target.closest('[data-quick-add]');
-    if (q) openTxSheet(null, null, q.dataset.quickAdd || null);
+    if (q) openTxSheet(null, q.dataset.quickAdd || null);
   });
 
   $('details-toggle').addEventListener('click', () => {
@@ -582,8 +576,11 @@ function bindEvents() {
     openRecSheet({ tx });
   });
 
-  // Деньги изменились — обновляем баланс
-  document.addEventListener('wallet-changed', renderBalance);
+  // Деньги изменились — обновляем баланс и «Готово к распределению»
+  document.addEventListener('wallet-changed', async () => {
+    await renderExpenses();
+    if (state.view === 'plan') await renderPlanView();
+  });
 
   // Копилка изменилась — обновляем итоги месяца и раздел «Накопления»
   document.addEventListener('savings-changed', async () => {
@@ -592,9 +589,9 @@ function bindEvents() {
   });
 
   // План изменился — перерисовываем
-  document.addEventListener('plan-changed', async () => {
+  document.addEventListener('budget-changed', async () => {
     await renderExpenses();
-    if (state.view === 'settings') await renderTemplatesSettings();
+    if (state.view === 'plan') await renderPlanView();
     if (state.view === 'stats') await renderStats();
   });
 

@@ -58,19 +58,20 @@
     <!-- Сколько денег сейчас -->
     <button type="button" class="card balance-card" id="balance-card"></button>
 
-    <div id="month-report"></div>
     <!-- «Вчера ничего не записано» -->
     <div id="nudge"></div>
     <!-- Регулярные платежи, которые ждут подтверждения суммы -->
     <div id="rec-pending"></div>
     <!-- Главное: сколько можно потратить сегодня -->
     <div id="today-hero"></div>
+    <!-- Строка «План: готово к распределению …» -->
+    <div id="plan-card"></div>
 
     <!-- Всё остальное — в свёрнутой секции -->
     <div class="details" id="month-details">
       <button type="button" class="details-toggle" id="details-toggle" aria-expanded="false">
         <span class="chev">›</span>
-        <span class="details-title">План и итоги месяца</span>
+        <span class="details-title">Итоги месяца</span>
         <span class="details-hint" id="details-hint"></span>
       </button>
       <div class="details-body" id="details-body" hidden>
@@ -82,13 +83,33 @@
             <div><span class="muted">Баланс</span><b id="sum-balance">0 ₽</b></div>
           </div>
         </section>
-        <div id="plan-card"></div>
       </div>
     </div>
     <div id="tx-list"></div>
   </main>
 
-  <!-- ===== Остальные вкладки — появятся на следующих этапах ===== -->
+  <!-- ===================== ВКЛАДКА «ПЛАН» ===================== -->
+  <main id="view-plan" class="view">
+    <header class="topbar">
+      <span class="topbar-side" aria-hidden="true"></span>
+      <div class="month-switch">
+        <button class="icon-btn" id="bud-prev" aria-label="Предыдущий месяц">‹</button>
+        <div class="month-pick">
+          <h1 id="bud-title">План</h1>
+          <span class="month-sub" id="bud-sub"></span>
+        </div>
+        <button class="icon-btn" id="bud-next" aria-label="Следующий месяц">›</button>
+      </div>
+      <span class="topbar-side" aria-hidden="true"></span>
+    </header>
+    <div class="date-bar" id="bud-today-bar" hidden><button type="button" class="date-bar-btn" id="bud-today">↩ К текущему месяцу</button></div>
+    <div id="bud-top"></div>
+    <div id="bud-over"></div>
+    <div id="bud-groups"></div>
+    <button type="button" class="link-btn small-link bud-add-group" id="bud-add-group">＋ Новая группа</button>
+    <p class="small muted bud-help">Нажмите на категорию, чтобы назначить сумму, поставить цель или перенести деньги. Нажмите на название группы, чтобы переименовать её. Остаток категории переходит на следующий месяц сам.</p>
+  </main>
+
   <!-- ===================== ВКЛАДКА «СТАТИСТИКА» ===================== -->
   <main id="view-stats" class="view">
     <header class="topbar">
@@ -108,15 +129,7 @@
           <button type="button" class="secondary-btn" id="sav-take">− Взять</button>
         </div>
       </section>
-      <div id="sav-pending"></div>
-      <section class="card chart-card">
-        <div class="card-head"><h3 id="sav-month-title">Этот месяц</h3></div>
-        <div id="sav-month"></div>
-      </section>
-      <section class="card chart-card">
-        <div class="card-head"><h3>По месяцам</h3></div>
-        <div id="sav-alltime"></div>
-      </section>
+      <p class="small muted sav-note">Копилка — деньги, отложенные отдельно: они не входят в «Мои деньги» и в план. Копить на что-то конкретное удобнее целью «Накопить» во вкладке «План».</p>
       <div class="section-title">История копилки</div>
       <div class="day-list" id="sav-history"></div>
     </div>
@@ -179,7 +192,7 @@
     <section class="card chart-card">
       <div class="card-head">
         <h3 id="st-plan-title">План</h3>
-        <button type="button" class="link-btn small-link" id="st-plan-edit" data-plan-edit="__budget__">Изменить</button>
+        <button type="button" class="link-btn small-link" id="st-plan-edit">Открыть ›</button>
       </div>
       <div id="st-plan"></div>
     </section>
@@ -187,7 +200,11 @@
   </main>
   <!-- ===================== ВКЛАДКА «ДОЛГИ» ===================== -->
   <main id="view-debts" class="view">
-    <header class="topbar"><h1>Долги</h1></header>
+    <header class="topbar">
+      <button class="icon-btn back-btn" id="debts-back" aria-label="Назад">‹</button>
+      <h1>Долги</h1>
+      <span class="topbar-side" aria-hidden="true"></span>
+    </header>
 
     <section class="summary card">
       <div class="summary-row">
@@ -205,7 +222,11 @@
   </main>
   <!-- ===================== ВКЛАДКА «НАСТРОЙКИ» ===================== -->
   <main id="view-settings" class="view">
-    <header class="topbar"><h1>Настройки</h1></header>
+    <header class="topbar"><h1>Ещё</h1></header>
+
+      <button type="button" class="plain-btn row-btn debts-row" id="open-debts">
+        <span>🤝 Долги</span><span class="muted" id="debts-row-sum">›</span>
+      </button>
 
       <div class="section-title">Оформление</div>
       <div class="card theme-card">
@@ -286,12 +307,6 @@
         <span>🏷️ Категории расходов и доходов</span><span class="muted">›</span>
       </button>
 
-      <div class="section-title">Планы</div>
-      <div class="card tpl-card">
-        <div id="tpl-list"></div>
-        <button type="button" class="secondary-btn full" id="tpl-new">＋ Новый план</button>
-      </div>
-
       <div class="section-title">Резервная копия</div>
       <div class="card">
         <p class="small muted" style="margin-top:0">
@@ -325,7 +340,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 7.4</p>
+      <p class="small muted center">Версия 8.0</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -339,17 +354,17 @@
       <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
       <span>Траты</span>
     </button>
+    <button class="tab" data-view="plan">
+      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 9l9 5 9-5"/></svg>
+      <span>План</span>
+    </button>
     <button class="tab" data-view="stats">
       <svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
       <span>Статистика</span>
     </button>
-    <button class="tab" data-view="debts">
-      <svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>
-      <span>Долги</span>
-    </button>
     <button class="tab" data-view="settings">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      <span>Настройки</span>
+      <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <span>Ещё</span>
     </button>
   </nav>
 
@@ -361,14 +376,11 @@
       <div class="segmented" id="tx-type">
         <button type="button" data-type="expense" class="active">Расход</button>
         <button type="button" data-type="income">Доход</button>
-        <button type="button" data-type="limit">Лимит</button>
       </div>
       <button type="submit" class="link-btn bold">Готово</button>
     </div>
 
     <div class="sheet-body">
-      <div class="plan-picker" id="plan-picker"></div>
-      <div class="amount-caption" id="amount-caption" hidden>Сумма лимита</div>
       <label class="amount-wrap" id="amount-wrap">
         <input id="tx-amount" type="text" inputmode="decimal" placeholder="0" aria-label="Сумма">
         <span class="currency">₽</span>
@@ -376,46 +388,6 @@
 
       <button type="button" class="sms-btn" id="tx-sms">📋 Вставить из SMS банка</button>
       <div class="cat-grid" id="tx-categories"></div>
-
-      <!-- Вкладка «Лимит»: бюджет месяца или лимит категории -->
-      <div id="limit-fields" hidden>
-        <div class="segmented wide" id="limit-period">
-          <button type="button" data-period="day" class="active">В день</button>
-          <button type="button" data-period="week">В неделю</button>
-          <button type="button" data-period="month">В месяц</button>
-        </div>
-        <!-- Разные суммы по дням недели (например, будни 300 ₽, выходные 500 ₽) -->
-        <label class="switch-row" id="wd-toggle-row">
-          <span>Разная сумма по дням недели</span>
-          <input type="checkbox" id="wd-toggle" class="switch">
-        </label>
-        <div id="wd-fields" hidden>
-          <div class="field-row">
-            <label class="field"><span>Будни (пн–пт), ₽</span><input id="wd-weekday" type="text" inputmode="decimal" placeholder="0"></label>
-            <label class="field"><span>Выходные (сб–вс), ₽</span><input id="wd-weekend" type="text" inputmode="decimal" placeholder="0"></label>
-          </div>
-          <div class="wd-grid" id="wd-grid">
-            <label><span>Пн</span><input data-wd="0" type="text" inputmode="decimal"></label>
-            <label><span>Вт</span><input data-wd="1" type="text" inputmode="decimal"></label>
-            <label><span>Ср</span><input data-wd="2" type="text" inputmode="decimal"></label>
-            <label><span>Чт</span><input data-wd="3" type="text" inputmode="decimal"></label>
-            <label><span>Пт</span><input data-wd="4" type="text" inputmode="decimal"></label>
-            <label class="we"><span>Сб</span><input data-wd="5" type="text" inputmode="decimal"></label>
-            <label class="we"><span>Вс</span><input data-wd="6" type="text" inputmode="decimal"></label>
-          </div>
-        </div>
-        <div id="budget-fields" hidden>
-          <label class="field">
-            <span>Отложить в копилку, ₽</span>
-            <input id="budget-savings" type="text" inputmode="decimal" placeholder="0">
-          </label>
-        </div>
-        <!-- Сохраняет лимит, панель остаётся открытой -->
-        <button type="button" class="add-limit-btn" id="limit-add" disabled>Добавить лимит</button>
-        <div class="card limit-info" id="limit-info"></div>
-        <div class="cat-grid" id="limit-categories"></div>
-        <button type="button" class="danger-btn" id="limit-delete" hidden>Убрать лимит</button>
-      </div>
 
       <div id="tx-fields">
         <!-- Дата: быстрые кнопки «Сегодня / Вчера» или любая дата -->
@@ -689,6 +661,69 @@
       </label>
       <div class="card limit-info" id="rec-info"></div>
       <button type="button" class="danger-btn" id="rec-delete" hidden>Удалить регулярный платёж</button>
+    </div>
+  </form>
+
+  <!-- ============ ПАНЕЛЬ: КАТЕГОРИЯ В ПЛАНЕ ============ -->
+  <form id="bud-cat-sheet" class="sheet" autocomplete="off" novalidate>
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <b id="bc-title">Категория</b>
+      <button type="submit" class="link-btn bold">Готово</button>
+    </div>
+    <div class="sheet-body">
+      <div class="amount-caption" id="bc-caption">Назначено</div>
+      <label class="amount-wrap">
+        <input id="bc-amount" class="amount-input" type="text" inputmode="decimal" placeholder="0" aria-label="Назначено">
+        <span class="currency">₽</span>
+      </label>
+      <div class="bc-quick" id="bc-quick"></div>
+      <div class="card plan-table bc-info" id="bc-info"></div>
+      <button type="button" class="plain-btn" id="bc-move">↔ Перенести деньги в другую категорию</button>
+
+      <div class="section-title">Цель</div>
+      <div class="segmented wide bc-ttype" id="bc-ttype">
+        <button type="button" data-t="none">Нет</button>
+        <button type="button" data-t="day">В день</button>
+        <button type="button" data-t="week">В неделю</button>
+        <button type="button" data-t="month">В месяц</button>
+        <button type="button" data-t="goal">Накопить</button>
+      </div>
+      <div id="bc-tfields" hidden>
+        <label class="switch-row" id="bc-wd-row">
+          <span>Разная сумма в будни и выходные</span>
+          <input type="checkbox" id="bc-wd" class="switch">
+        </label>
+        <div class="field-row">
+          <label class="field"><span id="bc-tlabel">Сумма, ₽</span><input id="bc-tamount" type="text" inputmode="decimal" placeholder="0"></label>
+          <label class="field" id="bc-weekend-field" hidden><span>В выходные (сб–вс), ₽</span><input id="bc-weekend" type="text" inputmode="decimal" placeholder="0"></label>
+        </div>
+        <label class="field" id="bc-tdate-field" hidden><span>К какой дате (необязательно)</span><input id="bc-tdate" type="date"></label>
+        <p class="small muted" id="bc-thint"></p>
+      </div>
+
+      <div class="section-title">Группа</div>
+      <div class="bc-groups" id="bc-groups"></div>
+    </div>
+  </form>
+
+  <!-- ============ ПАНЕЛЬ: ПЕРЕНЕСТИ ДЕНЬГИ / ПОКРЫТЬ ПЕРЕРАСХОД ============ -->
+  <form id="bud-move-sheet" class="sheet" autocomplete="off" novalidate>
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <b id="bm-title">Перенести деньги</b>
+      <span class="sheet-header-gap"></span>
+    </div>
+    <div class="sheet-body">
+      <div class="card bm-card" id="bm-card"></div>
+      <div class="section-title" id="bm-label">Взять из</div>
+      <div class="card bm-list" id="bm-list"></div>
+      <label class="switch-row bm-amount-row">
+        <span>Сумма</span>
+        <input id="bm-amount" type="text" inputmode="decimal" placeholder="0 ₽" aria-label="Сумма">
+      </label>
+      <p class="small muted" id="bm-hint"></p>
+      <button type="submit" class="primary-btn full">Перенести</button>
     </div>
   </form>
 

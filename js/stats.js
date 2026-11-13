@@ -10,9 +10,7 @@ import {
 } from './utils.js';
 import { $ } from './ui.js';
 import { renderSavings } from './savings.js';
-import {
-  getPlan, planSummary, monthResult, monthKeyOf, monthBounds, currentMonthKey, limitLabel,
-} from './plan.js';
+import { computeBudget, monthKeyOf } from './budget.js';
 
 // Цвета категорий: 8 проверенных на различимость (в том числе при
 // дальтонизме) оттенков. Цвет закреплён за категорией по её месту
@@ -233,75 +231,38 @@ async function renderMonthly(range) {
 }
 
 /**
- * План месяца: бюджет, копилка, лимиты и итоги — сэкономлено / превышение.
+ * План месяца (конверты): назначено, потрачено, что осталось по категориям.
  * Месяц — выбранный (в режиме «Месяц») или месяц конца периода.
  */
 async function renderPlan(categories, range) {
   const key = state.mode === 'month' ? monthKeyOf(state.anchor) : monthKeyOf(range.to);
   const mName = MONTHS[Number(key.slice(5, 7)) - 1].toLowerCase();
   $('st-plan-title').textContent = `План · ${mName}`;
-  $('st-plan-edit').dataset.planMonth = key; // «Изменить» — план именно этого месяца
-  const plan = await getPlan(key);
+  $('st-plan-edit').setAttribute('data-go-plan', key); // «Открыть» — план именно этого месяца
+  const b = await computeBudget(key);
   const box = $('st-plan');
-
-  if (!plan || (!plan.income && !plan.limits.length)) {
-    box.innerHTML = `<p class="small muted" style="margin:0 0 10px">
-      Плана на этот месяц нет. Нажмите «+» → «Лимит», чтобы задать бюджет, копилку и лимиты.</p>`;
+  const rows = b.rows.filter((r) => r.assigned || r.spent || r.carry);
+  if (!b.started || !rows.length) {
+    box.innerHTML = `<p class="small muted" style="margin:0">Плана на этот месяц нет. Откройте вкладку «План» и распределите деньги по категориям.</p>`;
     return;
   }
-
-  const { from, to } = monthBounds(key);
-  const cur = currentMonthKey();
-  const future = key > cur;
-  // Прошлый месяц — итоги целиком; текущий — по вчерашний день
-  const upto = key < cur ? to : yesterdayISO();
-  const items = await db.getTransactionsBetween(from, to);
-  const sum = planSummary(plan, categories);
-  const res = future || upto < from ? null : monthResult(plan, categories, items, upto);
-
-  let html = '';
-  if (plan.income > 0) {
-    html += `<div class="plan-table">
-      <div><span>Бюджет</span><b>${formatMoney(plan.income)}</b></div>
-      <div><span>В копилку</span><b>${formatMoney(plan.savings)}</b></div>
-      ${sum.mandatory ? `<div><span>Обязательные</span><b>${formatMoney(sum.mandatory)}</b></div>` : ''}
-      <div><span>По лимитам</span><b>${formatMoney(sum.allocated)}</b></div>
-      <div><span>Свободно</span><b class="${sum.free < 0 ? 'negative' : ''}">${formatMoney(sum.free)}</b></div>
+  const left = rows.reduce((s, r) => s + Math.max(0, r.available), 0);
+  const over = rows.reduce((s, r) => s + Math.max(0, -r.available), 0);
+  let html = `<div class="plan-table">
+      <div><span>Назначено</span><b>${formatMoney(b.assignedTotal)}</b></div>
+      <div><span>Потрачено</span><b>${formatMoney(b.spentTotal)}</b></div>
+      <div><span>Осталось в категориях</span><b class="income">${formatMoney(left)}</b></div>
+      <div><span>Перерасход</span><b class="${over ? 'negative' : ''}">${formatMoney(over)}</b></div>
     </div>`;
-  }
-
-  if (!res) {
-    html += '<p class="small muted">Месяц ещё не начался — итоги появятся позже.</p>';
-    box.innerHTML = html;
-    return;
-  }
-
-  const net = res.saved - res.over;
-  html += `<div class="section-title">${res.finished ? 'Итоги месяца' : 'Пока что — по вчерашний день'}</div>
-    <div class="daily-totals">
-      <div><span class="muted">Сэкономлено</span><b class="income">+${formatMoney(res.saved)}</b></div>
-      <div><span class="muted">Превышение</span><b class="negative">−${formatMoney(res.over)}</b></div>
-      <div><span class="muted">Итого</span><b class="${net < 0 ? 'negative' : 'income'}">${net >= 0 ? '+' : '−'}${formatMoney(Math.abs(net))}</b></div>
-    </div>`;
-
-  const row = (emoji, name, sub, r) => `
+  html += rows.map((r) => `
     <div class="daily-row">
       <div class="daily-name">
-        <span>${emoji} ${escapeHTML(name)}</span>
-        <small class="muted">${sub} · потрачено ${formatMoney(r.spent)} из ${formatMoney(r.allocated)}</small>
+        <span>${r.cat.emoji} ${escapeHTML(r.cat.name)}</span>
+        <small class="muted">${r.carry ? `с прошлого ${formatMoney(r.carry)} · ` : ''}назначено ${formatMoney(r.assigned)} · потрачено ${formatMoney(r.spent)}</small>
       </div>
-      <div class="daily-sums">${r.diff > 0 ? `<span class="income">+${formatMoney(r.diff)}</span>`
-        : r.diff < 0 ? `<span class="negative">−${formatMoney(-r.diff)}</span>` : '<span class="muted">0 ₽</span>'}</div>
-    </div>`;
-  html += res.rows.map((r) => row(r.category.emoji, r.category.name,
-    limitLabel(r.limit, formatMoney), r)).join('');
-  if (res.other) html += row('🧺', 'Остальные траты', 'свободные деньги', res.other);
-  if (res.mandatory) html += row('🔁', 'Обязательные', 'регулярные платежи', res.mandatory);
-  if (!res.finished) {
-    html += '<p class="small muted" style="margin:8px 0 0">Месячные лимиты и «остальные траты» подводятся в конце месяца. Сегодняшний день войдёт в итоги завтра.</p>';
-  } else if (plan.income > 0) {
-    html += `<p class="small" style="margin:10px 0 0">Всего потрачено ${formatMoney(res.totalSpent)} из ${formatMoney(sum.available)} · в копилку ${formatMoney(plan.savings)}${net > 0 ? ` + сэкономлено ${formatMoney(net)}` : ''}</p>`;
-  }
+      <div class="daily-sums">${r.available > 0 ? `<span class="income">${formatMoney(r.available)}</span>`
+        : r.available < 0 ? `<span class="negative">−${formatMoney(-r.available)}</span>` : '<span class="muted">0 ₽</span>'}</div>
+    </div>`).join('');
   box.innerHTML = html;
 }
 
