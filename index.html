@@ -59,6 +59,8 @@
     <button type="button" class="card balance-card" id="balance-card"></button>
 
     <div id="month-report"></div>
+    <!-- «Вчера ничего не записано» -->
+    <div id="nudge"></div>
     <!-- Регулярные платежи, которые ждут подтверждения суммы -->
     <div id="rec-pending"></div>
     <!-- Главное: сколько можно потратить сегодня -->
@@ -228,6 +230,33 @@
         <button type="button" class="secondary-btn full" id="rec-new">＋ Новый регулярный платёж</button>
       </div>
 
+      <div class="section-title">Напоминания и SMS</div>
+      <div class="card help-card">
+        <p class="small" style="margin-top:0">Приложение не может само присылать уведомления и читать банк — это умеет приложение iPhone <b>«Команды»</b>. Настройка один раз, пару минут.</p>
+        <details>
+          <summary>🔔 Напоминание каждый вечер</summary>
+          <ol class="small">
+            <li>Откройте приложение <b>«Команды»</b> → вкладка <b>«Автоматизация»</b> → <b>«＋»</b>.</li>
+            <li>Выберите <b>«Время суток»</b> → например, <b>21:00</b>, <b>«Ежедневно»</b>.</li>
+            <li>Включите <b>«Запускать сразу»</b> (без подтверждения) → <b>«Далее»</b>.</li>
+            <li>«Новая пустая автоматизация» → добавьте действие <b>«Показать уведомление»</b>.</li>
+            <li>Текст: <i>«💸 Запишите траты за сегодня»</i> → <b>«Готово»</b>.</li>
+          </ol>
+        </details>
+        <details>
+          <summary>📩 Траты из SMS банка</summary>
+          <ol class="small">
+            <li>«Команды» → «Автоматизация» → «＋» → <b>«Сообщение»</b>.</li>
+            <li><b>«Отправитель»</b> — номер банка (у Сбера <b>900</b>), <b>«Сообщение содержит»</b> — например, <b>«Покупка»</b> или <b>«р»</b>.</li>
+            <li>Включите <b>«Запускать сразу»</b> → «Далее» → «Новая пустая автоматизация».</li>
+            <li>Добавьте действие <b>«Скопировать в буфер обмена»</b> и выберите в нём <b>«Ввод команды»</b> (текст сообщения).</li>
+            <li>Добавьте <b>«Показать уведомление»</b>: <i>«Скопировано — откройте Бюджет → + → Вставить из SMS»</i>.</li>
+          </ol>
+          <p class="small muted">Работает, только если банк присылает <b>SMS</b>: уведомления из приложений банков iPhone «Командам» не показывает. Можно и без автоматизации: скопируйте SMS вручную и нажмите «📋 Вставить из SMS банка» в окне «+» — можно вставить сразу несколько сообщений.</p>
+        </details>
+        <a class="secondary-btn full" href="shortcuts://">Открыть «Команды»</a>
+      </div>
+
       <div class="section-title">Импорт выписки из банка</div>
       <div class="card imp-card" id="imp-card">
         <p class="small" style="margin-top:0">Выгрузите выписку за месяц в приложении банка и загрузите файл сюда —
@@ -236,6 +265,7 @@
           📥 Загрузить выписку (PDF, Excel или CSV)
           <input id="imp-file-input" type="file" accept=".pdf,.csv,.xlsx,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
         </label>
+        <button type="button" class="secondary-btn full" id="imp-sms">📋 Вставить текст SMS / уведомлений</button>
         <p class="small muted" id="imp-last"></p>
         <button type="button" class="link-btn small-link" id="imp-help-btn">Как выгрузить выписку из банка ›</button>
         <div class="imp-help small" id="imp-help" hidden>
@@ -295,7 +325,7 @@
       <div class="section-title">Тестовый режим</div>
       <div class="card" id="test-controls"></div>
 
-      <p class="small muted center">Версия 7.3</p>
+      <p class="small muted center">Версия 7.4</p>
   </main>
 
   <!-- Большая кнопка «+» -->
@@ -344,6 +374,7 @@
         <span class="currency">₽</span>
       </label>
 
+      <button type="button" class="sms-btn" id="tx-sms">📋 Вставить из SMS банка</button>
       <div class="cat-grid" id="tx-categories"></div>
 
       <!-- Вкладка «Лимит»: бюджет месяца или лимит категории -->
@@ -658,6 +689,22 @@
       </label>
       <div class="card limit-info" id="rec-info"></div>
       <button type="button" class="danger-btn" id="rec-delete" hidden>Удалить регулярный платёж</button>
+    </div>
+  </form>
+
+  <!-- ============ ПАНЕЛЬ: ТЕКСТ SMS ============ -->
+  <form id="sms-sheet" class="sheet" autocomplete="off" novalidate>
+    <div class="sheet-header">
+      <button type="button" class="link-btn" data-close>Отмена</button>
+      <b>Текст из SMS</b>
+      <button type="submit" class="link-btn bold">Распознать</button>
+    </div>
+    <div class="sheet-body">
+      <p class="small muted" style="margin-top:0">Скопируйте SMS или уведомления банка и вставьте сюда (долгое нажатие → «Вставить»). Несколько сообщений — с новой строки.</p>
+      <label class="field">
+        <span>Текст</span>
+        <textarea id="sms-text" class="sms-text" rows="8" placeholder="Покупка 350р PYATEROCHKA Баланс: 12 345р"></textarea>
+      </label>
     </div>
   </form>
 
